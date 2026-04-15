@@ -15,6 +15,6 @@ def get_settings() -> Settings:
         app_port=int(os.getenv("APP_PORT", "8000")),
         database_url=os.getenv(
             "DATABASE_URL",
-            "postgresql://postgres:postgres@db:5432/onlineshop",
+            "postgresql+asyncpg://postgres:postgres@db:5432/onlineshop",
         ),
     )

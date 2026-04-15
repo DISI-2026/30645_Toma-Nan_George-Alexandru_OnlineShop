@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
+from sqlalchemy import text
 
 from .config import get_settings
 from .db import connect, disconnect
@@ -9,9 +10,11 @@ from .db import connect, disconnect
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await connect(app)
+    engine, session_factory = connect()
+    app.state.db_engine = engine
+    app.state.db_sessionmaker = session_factory
     yield
-    await disconnect(app)
+    await disconnect(engine)
 
 
 app = FastAPI(lifespan=lifespan)
@@ -19,8 +22,8 @@ app = FastAPI(lifespan=lifespan)
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    async with app.state.db_pool.acquire() as connection:
-        await connection.fetchval("select 1")
+    async with app.state.db_engine.connect() as connection:
+        await connection.execute(text("SELECT 1"))
     return {"status": "ok"}
 
 
