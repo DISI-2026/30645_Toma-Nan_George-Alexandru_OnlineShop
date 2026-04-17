@@ -1,0 +1,34 @@
+#63
+FE Task: Crearea paginii de înregistrare și a formularului (input-uri pentru email, parolă, confirmare parolă și selecție rol).
+Task
+This task belongs to
+#35 US 1.1: Ca utilizator, îmi doresc să mă pot înregistra în platformă cu un email valid, pentru a avea acces la funcționalitățile specifice rolului meu. 
+
+
+#64
+FE Task: Implementarea validărilor de front-end (ex: câmpuri obligatorii, format email) și integrarea cu API-ul de backend.
+Task
+This task belongs to
+#35 US 1.1: Ca utilizator, îmi doresc să mă pot înregistra în platformă cu un email valid, pentru a avea acces la funcționalitățile specifice rolului meu. 
+
+
+
+#69
+FE Task: Crearea paginii de Login și a formularului (input-uri pentru email și parolă).
+Task
+This task belongs to
+#36 US 1.2: Ca utilizator, îmi doresc să mă pot autentifica, pentru a-mi accesa contul. 
+
+
+#70
+FE Task: Gestionarea stării de autentificare în frontend (salvarea token-ului) și redirecționarea utilizatorului către dashboard-ul specific rolului său după succes.
+Task
+This task belongs to
+#36 US 1.2: Ca utilizator, îmi doresc să mă pot autentifica, pentru a-mi accesa contul. 
+
+
+#75
+FE Task: Crearea paginii "Am uitat parola" (unde utilizatorul introduce email-ul) și a paginii de "Resetare parolă" (unde introduce noua parolă), aceasta din urmă fiind accesibilă doar prin link-ul din email.
+Task
+This task belongs to
+#37 US 1.3: Ca utilizator, îmi doresc să îmi pot reseta parola printr-un link primit pe email, în cazul în care o uit. 
