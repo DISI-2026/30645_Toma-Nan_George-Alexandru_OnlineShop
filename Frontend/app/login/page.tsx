@@ -2,23 +2,66 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Eye, EyeOff } from "lucide-react"
+import { toast } from "sonner"
+import { loginSchema, type LoginFormData } from "@/lib/validations/auth"
+import { loginUser } from "@/lib/api/auth"
+import { saveAuthToken, saveUser, getRedirectPath } from "@/lib/auth-utils"
+import { Loader2, Eye, EyeOff } from "lucide-react"
 
 export default function LoginPage() {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: ""
-  })
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // TODO: va fi implementat în task #70
-    console.log("Login data:", formData)
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  })
+
+  const onSubmit = async (data: LoginFormData) => {
+    setIsLoading(true)
+
+    try {
+      const response = await loginUser({
+        email: data.email,
+        password: data.password,
+      })
+
+      // Salvăm token-ul și informațiile utilizatorului
+      saveAuthToken(response.access_token)
+      saveUser(response.user)
+
+      toast.success("Autentificare reușită!", {
+        description: `Bun venit, ${response.user.email}!`,
+      })
+
+      // Redirect bazat pe rol
+      const redirectPath = getRedirectPath(response.user.role)
+      
+      setTimeout(() => {
+        router.push(redirectPath)
+      }, 1000)
+    } catch (error) {
+      toast.error("Eroare la autentificare", {
+        description: error instanceof Error ? error.message : "Verifică email-ul și parola.",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -37,7 +80,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -45,11 +88,13 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 placeholder="exemplu@email.com"
-                value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                {...register("email")}
                 className="border-slate-300 focus:border-orange-500 focus:ring-orange-500"
-                required
+                disabled={isLoading}
               />
+              {errors.email && (
+                <p className="text-sm text-red-500">{errors.email.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -67,10 +112,9 @@ export default function LoginPage() {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  {...register("password")}
                   className="border-slate-300 focus:border-orange-500 focus:ring-orange-500 pr-10"
-                  required
+                  disabled={isLoading}
                 />
                 <button
                   type="button"
@@ -81,12 +125,26 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-sm text-red-500">{errors.password.message}</p>
+              )}
             </div>
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full bg-orange-500 hover:bg-orange-600 text-white">
-              Autentificare
+            <Button 
+              type="submit" 
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Se autentifică...
+                </>
+              ) : (
+                "Autentificare"
+              )}
             </Button>
             
             <p className="text-sm text-center text-muted-foreground">
