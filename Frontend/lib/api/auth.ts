@@ -9,8 +9,8 @@ export interface BuyerRegisterData {
   email: string
   password: string
   role: "buyer"
-  address: string
-  preferred_category_ids?: number[]
+  address: string | null
+  preferred_category_ids: number[]
 }
 
 export interface SellerRegisterData {
@@ -18,8 +18,8 @@ export interface SellerRegisterData {
   password: string
   role: "seller"
   company_name: string
-  description?: string
-  logo_url?: string
+  description: string | null
+  logo_url: string | null
 }
 
 export type RegisterData = BuyerRegisterData | SellerRegisterData

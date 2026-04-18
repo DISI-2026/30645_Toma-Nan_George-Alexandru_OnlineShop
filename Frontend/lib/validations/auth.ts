@@ -39,18 +39,6 @@ export const registerSchema = z
   })
   .refine(
     (data) => {
-      if (data.role === "buyer") {
-        return data.address && data.address.length > 0
-      }
-      return true
-    },
-    {
-      message: "Adresa este obligatorie pentru buyer",
-      path: ["address"],
-    }
-  )
-  .refine(
-    (data) => {
       if (data.role === "seller") {
         return data.company_name && data.company_name.length > 0
       }

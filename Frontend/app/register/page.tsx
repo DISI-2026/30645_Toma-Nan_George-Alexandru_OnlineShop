@@ -52,7 +52,7 @@ export default function RegisterPage() {
           email: data.email,
           password: data.password,
           role: "buyer" as const,
-          address: data.address || "",
+          address: data.address || null,
           preferred_category_ids: [],
         }
       } else {
@@ -61,8 +61,8 @@ export default function RegisterPage() {
           password: data.password,
           role: "seller" as const,
           company_name: data.company_name || "",
-          description: data.description || "",
-          logo_url: data.logo_url || "",
+          description: data.description || null,
+          logo_url: data.logo_url || null,
         }
       }
 
