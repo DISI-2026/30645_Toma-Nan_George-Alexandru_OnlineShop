@@ -7,7 +7,6 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from application.security.tokens import InvalidAccessTokenError
 from application.security import decode_access_token
-from backend.config import get_settings
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
