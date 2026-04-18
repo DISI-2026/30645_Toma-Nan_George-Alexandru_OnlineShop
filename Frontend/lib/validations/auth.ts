@@ -28,7 +28,7 @@ export const registerSchema = z
       .string()
       .min(1, "Confirmarea parolei este obligatorie"),
     
-    role: z.enum(["client", "seller", "admin"], {
+    role: z.enum(["buyer", "seller", "admin"], {
       required_error: "Selectarea rolului este obligatorie",
     }),
   })

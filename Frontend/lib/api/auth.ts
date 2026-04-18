@@ -43,7 +43,7 @@ export interface LoginResponse {
  */
 export async function registerUser(data: RegisterData): Promise<RegisterResponse> {
   try {
-    const response = await fetch(`${API_URL}/api/auth/register`, {
+    const response = await fetch(`${API_URL}/auth/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -77,7 +77,7 @@ export async function registerUser(data: RegisterData): Promise<RegisterResponse
  */
 export async function loginUser(data: LoginData): Promise<LoginResponse> {
   try {
-    const response = await fetch(`${API_URL}/api/auth/login`, {
+    const response = await fetch(`${API_URL}/auth/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
