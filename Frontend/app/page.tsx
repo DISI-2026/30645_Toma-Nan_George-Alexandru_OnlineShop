@@ -247,9 +247,11 @@ export default function BuyerHomepage() {
                   Login
                 </Button>
               </Link>
-              <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white">
-                Register
-              </Button>
+              <Link href="/register">
+                <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white">
+                  Register
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
