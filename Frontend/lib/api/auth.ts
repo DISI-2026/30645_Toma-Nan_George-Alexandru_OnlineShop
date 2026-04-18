@@ -1,34 +1,44 @@
 /**
  * Servicii API pentru autentificare
+ * Backend: http://localhost:8000
  */
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
-export interface RegisterData {
+export interface BuyerRegisterData {
   email: string
   password: string
-  role: string
-  full_name: string
+  role: "buyer"
+  address: string
+  preferred_category_ids?: number[]
 }
 
-export interface RegisterResponse {
-  id: string
+export interface SellerRegisterData {
   email: string
-  role: string
-  full_name: string
-  created_at: string
+  password: string
+  role: "seller"
+  company_name: string
+  description?: string
+  logo_url?: string
+}
+
+export type RegisterData = BuyerRegisterData | SellerRegisterData
+
+export interface RegisterResponse {
+  user: {
+    id: number
+    email: string
+    role: string
+  }
 }
 
 /**
  * Înregistrează un utilizator nou
- * 
- * @param data - Datele de înregistrare (email, password, role, full_name)
- * @returns Promise cu răspunsul de la server
- * @throws Error dacă înregistrarea eșuează
+ * Endpoint: POST /auth/register
  */
 export async function registerUser(data: RegisterData): Promise<RegisterResponse> {
   try {
-    const response = await fetch(`${API_URL}/api/v1/auth/register`, {
+    const response = await fetch(`${API_URL}/auth/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -39,7 +49,6 @@ export async function registerUser(data: RegisterData): Promise<RegisterResponse
     const responseData = await response.json()
 
     if (!response.ok) {
-      // Gestionăm erorile de la backend
       if (response.status === 409) {
         throw new Error("Email-ul este deja înregistrat")
       }
@@ -48,7 +57,6 @@ export async function registerUser(data: RegisterData): Promise<RegisterResponse
 
     return responseData
   } catch (error) {
-    // Re-aruncăm eroarea pentru a fi gestionată în componenta
     if (error instanceof Error) {
       throw error
     }
