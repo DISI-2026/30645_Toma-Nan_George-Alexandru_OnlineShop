@@ -5,9 +5,10 @@ import { z } from "zod"
  * 
  * Validări implementate:
  * - Email: format valid, obligatoriu
- * - Parolă: minim 8 caractere, literă mare, literă mică, cifră, caracter special
+ * - Parolă: minim 8 caractere, literă mare, cifră
  * - Confirmare parolă: trebuie să coincidă cu parola
- * - Rol: obligatoriu, una din valorile permise
+ * - Full name: 2-100 caractere
+ * - Rol: obligatoriu, buyer sau seller
  */
 export const registerSchema = z
   .object({
@@ -20,15 +21,18 @@ export const registerSchema = z
       .string()
       .min(8, "Parola trebuie să aibă minim 8 caractere")
       .regex(/[A-Z]/, "Parola trebuie să conțină cel puțin o literă mare")
-      .regex(/[a-z]/, "Parola trebuie să conțină cel puțin o literă mică")
-      .regex(/[0-9]/, "Parola trebuie să conțină cel puțin o cifră")
-      .regex(/[^A-Za-z0-9]/, "Parola trebuie să conțină cel puțin un caracter special"),
+      .regex(/[0-9]/, "Parola trebuie să conțină cel puțin o cifră"),
     
     confirmPassword: z
       .string()
       .min(1, "Confirmarea parolei este obligatorie"),
     
-    role: z.enum(["client", "seller", "admin"], {
+    full_name: z
+      .string()
+      .min(2, "Numele trebuie să aibă minim 2 caractere")
+      .max(100, "Numele trebuie să aibă maxim 100 caractere"),
+    
+    role: z.enum(["buyer", "seller"], {
       required_error: "Selectarea rolului este obligatorie",
     }),
   })

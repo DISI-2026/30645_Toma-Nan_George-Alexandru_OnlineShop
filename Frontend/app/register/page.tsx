@@ -31,7 +31,8 @@ export default function RegisterPage() {
             email: "",
             password: "",
             confirmPassword: "",
-            role: "client",
+            full_name: "",
+            role: "buyer",
         },
     })
 
@@ -45,6 +46,7 @@ export default function RegisterPage() {
                 email: data.email,
                 password: data.password,
                 role: data.role,
+                full_name: data.full_name,
             })
 
             toast.success("Cont creat cu succes!", {
@@ -98,6 +100,22 @@ export default function RegisterPage() {
                             )}
                         </div>
 
+                        {/* Full Name Field */}
+                        <div className="space-y-2">
+                            <Label htmlFor="full_name">Nume complet</Label>
+                            <Input
+                                id="full_name"
+                                type="text"
+                                placeholder="Ion Popescu"
+                                {...register("full_name")}
+                                className="border-slate-300 focus:border-orange-500 focus:ring-orange-500"
+                                disabled={isLoading}
+                            />
+                            {errors.full_name && (
+                                <p className="text-sm text-red-500">{errors.full_name.message}</p>
+                            )}
+                        </div>
+
                         {/* Password Field */}
                         <div className="space-y-2">
                             <Label htmlFor="password">Parolă</Label>
@@ -113,7 +131,7 @@ export default function RegisterPage() {
                                 <p className="text-sm text-red-500">{errors.password.message}</p>
                             )}
                             <p className="text-xs text-muted-foreground">
-                                Minim 8 caractere, o literă mare, o literă mică, o cifră și un caracter special
+                                Minim 8 caractere, o literă mare și o cifră
                             </p>
                         </div>
 
@@ -138,26 +156,20 @@ export default function RegisterPage() {
                             <Label>Selectează rolul</Label>
                             <RadioGroup
                                 value={selectedRole}
-                                onValueChange={(value) => setValue("role", value as "client" | "seller" | "admin")}
+                                onValueChange={(value) => setValue("role", value as "buyer" | "seller")}
                                 className="space-y-2"
                                 disabled={isLoading}
                             >
                                 <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="client" id="client" />
-                                    <Label htmlFor="client" className="font-normal cursor-pointer">
-                                        Client - Cumpără produse
+                                    <RadioGroupItem value="buyer" id="buyer" />
+                                    <Label htmlFor="buyer" className="font-normal cursor-pointer">
+                                        Buyer - Cumpără produse
                                     </Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <RadioGroupItem value="seller" id="seller" />
                                     <Label htmlFor="seller" className="font-normal cursor-pointer">
                                         Seller - Vinde produse
-                                    </Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="admin" id="admin" />
-                                    <Label htmlFor="admin" className="font-normal cursor-pointer">
-                                        Admin - Administrează platforma
                                     </Label>
                                 </div>
                             </RadioGroup>
