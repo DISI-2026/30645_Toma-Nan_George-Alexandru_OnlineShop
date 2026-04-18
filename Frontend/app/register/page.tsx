@@ -7,23 +7,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Textarea } from "@/components/ui/textarea"
 
 export default function RegisterPage() {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    confirmPassword: "",
-    role: "client"
-  })
+  const [role, setRole] = useState("buyer")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     // Validările și integrarea cu API vor fi adăugate în Task #64
-    console.log("Form data:", formData)
-  }
-
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    console.log("Form submitted")
   }
 
   return (
@@ -41,48 +33,39 @@ export default function RegisterPage() {
             Creează un cont nou pentru a accesa platforma
           </CardDescription>
         </CardHeader>
-        
+
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            {/* Email Field */}
+            {/* Email */}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="exemplu@email.com"
-                value={formData.email}
-                onChange={(e) => handleChange("email", e.target.value)}
                 className="border-slate-300 focus:border-orange-500 focus:ring-orange-500"
-                required
               />
             </div>
 
-            {/* Password Field */}
+            {/* Password */}
             <div className="space-y-2">
               <Label htmlFor="password">Parolă</Label>
               <Input
                 id="password"
                 type="password"
                 placeholder="••••••••"
-                value={formData.password}
-                onChange={(e) => handleChange("password", e.target.value)}
                 className="border-slate-300 focus:border-orange-500 focus:ring-orange-500"
-                required
               />
             </div>
 
-            {/* Confirm Password Field */}
+            {/* Confirm Password */}
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirmă parola</Label>
               <Input
                 id="confirmPassword"
                 type="password"
                 placeholder="••••••••"
-                value={formData.confirmPassword}
-                onChange={(e) => handleChange("confirmPassword", e.target.value)}
                 className="border-slate-300 focus:border-orange-500 focus:ring-orange-500"
-                required
               />
             </div>
 
@@ -90,14 +73,14 @@ export default function RegisterPage() {
             <div className="space-y-3">
               <Label>Selectează rolul</Label>
               <RadioGroup
-                value={formData.role}
-                onValueChange={(value) => handleChange("role", value)}
+                value={role}
+                onValueChange={setRole}
                 className="space-y-2"
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="client" id="client" />
-                  <Label htmlFor="client" className="font-normal cursor-pointer">
-                    Client - Cumpără produse
+                  <RadioGroupItem value="buyer" id="buyer" />
+                  <Label htmlFor="buyer" className="font-normal cursor-pointer">
+                    Buyer - Cumpără produse
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -106,21 +89,64 @@ export default function RegisterPage() {
                     Seller - Vinde produse
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="admin" id="admin" />
-                  <Label htmlFor="admin" className="font-normal cursor-pointer">
-                    Admin - Administrează platforma
-                  </Label>
-                </div>
               </RadioGroup>
             </div>
+
+            {/* Buyer specific fields */}
+            {role === "buyer" && (
+              <div className="space-y-4 border-t pt-4">
+                <p className="text-sm font-medium text-slate-700">Informații Buyer</p>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Adresă de livrare</Label>
+                  <Input
+                    id="address"
+                    type="text"
+                    placeholder="Strada Memorandumului 12, Cluj-Napoca"
+                    className="border-slate-300 focus:border-orange-500 focus:ring-orange-500"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Seller specific fields */}
+            {role === "seller" && (
+              <div className="space-y-4 border-t pt-4">
+                <p className="text-sm font-medium text-slate-700">Informații Seller</p>
+                <div className="space-y-2">
+                  <Label htmlFor="company_name">Numele companiei</Label>
+                  <Input
+                    id="company_name"
+                    type="text"
+                    placeholder="Tech Market SRL"
+                    className="border-slate-300 focus:border-orange-500 focus:ring-orange-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Descriere</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Descrie afacerea ta..."
+                    className="border-slate-300 focus:border-orange-500 focus:ring-orange-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="logo_url">URL Logo</Label>
+                  <Input
+                    id="logo_url"
+                    type="url"
+                    placeholder="https://example.com/logo.png"
+                    className="border-slate-300 focus:border-orange-500 focus:ring-orange-500"
+                  />
+                </div>
+              </div>
+            )}
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full bg-orange-500 hover:bg-orange-600 text-white">
               Înregistrare
             </Button>
-            
+
             <p className="text-sm text-center text-muted-foreground">
               Ai deja cont?{" "}
               <Link href="/login" className="text-orange-500 hover:text-orange-600 hover:underline font-medium">
