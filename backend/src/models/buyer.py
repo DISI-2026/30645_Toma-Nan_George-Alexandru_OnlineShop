@@ -3,12 +3,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
+from .buyer_category_preference import buyer_category_preferences
 
 if TYPE_CHECKING:
+    from .category import Category
     from .user import User
 
 
@@ -22,7 +24,6 @@ class Buyer(Base):
         index=True,
         nullable=False,
     )
-    preferences: Mapped[str | None] = mapped_column(Text, nullable=True)
     address: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -37,4 +38,8 @@ class Buyer(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="buyer")
+    preferred_categories: Mapped[list[Category]] = relationship(
+        secondary=buyer_category_preferences,
+        back_populates="preferred_by_buyers",
+    )
 
