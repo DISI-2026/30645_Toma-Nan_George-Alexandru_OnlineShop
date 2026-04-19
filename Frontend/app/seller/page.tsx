@@ -58,6 +58,16 @@ export default function SellerProfilePage() {
     
     setIsEditModalOpen(false)
   }
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, logo_path: reader.result as string }))
+      }
+      reader.readAsDataURL(file)
+    }
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -185,12 +195,27 @@ export default function SellerProfilePage() {
             <CardContent className="p-6 space-y-4">
               
               <div className="space-y-2">
-                <Label htmlFor="logo_path">Imagine Profil</Label>
-                <Input 
-                  id="logo_path" name="logo_path" 
-                  value={formData.logo_path} onChange={handleInputChange}
-                  placeholder="https://exemplu.ro/logo.jpg" 
-                />
+                <Label htmlFor="logo_upload">Imagine Profil</Label>
+                <div className="flex items-center gap-4">
+                  {/* Afișăm un mic preview în interiorul modalului, opțional */}
+                  {formData.logo_path && (
+                    <img 
+                      src={formData.logo_path} 
+                      alt="Preview" 
+                      className="w-10 h-10 rounded-md object-cover border"
+                    />
+                  )}
+                  <Input 
+                    id="logo_upload" 
+                    type="file" 
+                    accept="image/png, image/jpeg, image/jpg"
+                    onChange={handleImageUpload}
+                    className="cursor-pointer file:text-orange-500 file:bg-orange-50 file:border-0 file:mr-4 file:px-4 file:py-1 hover:file:bg-orange-100" 
+                  />
+                </div>
+                <p className="text-xs text-slate-500">
+                  Selectează o imagine din calculatorul tău (JPG, PNG).
+                </p>
               </div>
 
               <div className="space-y-2">
