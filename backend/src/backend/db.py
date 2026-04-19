@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from models import Base
+
 from .config import get_settings
 
 
@@ -23,6 +25,11 @@ def connect() -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
         autocommit=False,
     )
     return engine, session_factory
+
+
+async def ensure_schema(engine: AsyncEngine) -> None:
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
 
 
 async def disconnect(engine: AsyncEngine | None) -> None:
