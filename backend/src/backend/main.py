@@ -1,27 +1,59 @@
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from api.router import api_router
+from .api.errors import APIError, api_error_handler, http_exception_handler, validation_error_handler
 from .config import get_settings
 from .db import connect, disconnect, ensure_schema
+from .db_schema import initialize_schema, reset_schema
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.settings = get_settings()
+    settings = get_settings()
+    settings.media_root.mkdir(parents=True, exist_ok=True)
+    settings.seller_media_root.mkdir(parents=True, exist_ok=True)
     engine, session_factory = connect()
     await ensure_schema(engine)
     app.state.db_engine = engine
     app.state.db_sessionmaker = session_factory
+    app.state.settings = settings
+    if settings.reset_db_on_startup:
+        await reset_schema(engine)
+    elif settings.auto_init_db:
+        await initialize_schema(engine)
     yield
     await disconnect(engine)
 
 
-app = FastAPI(lifespan=lifespan)
-app.include_router(api_router)
+def create_app() -> FastAPI:
+    settings = get_settings()
+    settings.media_root.mkdir(parents=True, exist_ok=True)
+    settings.seller_media_root.mkdir(parents=True, exist_ok=True)
+    app = FastAPI(lifespan=lifespan)
+    app.state.settings = settings
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.mount("/media", StaticFiles(directory=settings.media_root), name="media")
+    app.add_exception_handler(APIError, api_error_handler)
+    app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_error_handler)
+    app.include_router(api_router, prefix="/api/v1")
+    return app
+
+
+app = create_app()
 
 
 @app.get("/health")

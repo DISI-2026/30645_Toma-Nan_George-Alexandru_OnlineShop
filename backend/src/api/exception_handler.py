@@ -8,10 +8,15 @@ from typing import Any, ParamSpec, TypeVar, cast
 
 from fastapi import HTTPException, status
 
+from backend.api.errors import APIError
 from application.usecases.auth import (
     EmailAlreadyRegisteredError,
     InvalidBuyerPreferenceCategoriesError,
     InvalidCredentialsError,
+)
+from application.usecases.sellers import (
+    SellerProfileAlreadyExistsError,
+    SellerProfileNotFoundError,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,6 +35,8 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
             async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:
                 try:
                     return await cast(Any, func)(*args, **kwargs)
+                except APIError:
+                    raise
                 except HTTPException:
                     raise
                 except EmailAlreadyRegisteredError as exc:
@@ -46,6 +53,16 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     raise HTTPException(
                         status_code=status.HTTP_401_UNAUTHORIZED,
                         detail="Invalid email or password.",
+                    ) from exc
+                except SellerProfileAlreadyExistsError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Seller profile already exists.",
+                    ) from exc
+                except SellerProfileNotFoundError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=str(exc),
                     ) from exc
                 except Exception as exc:
                     logger.exception(
@@ -64,6 +81,8 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
         def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:
             try:
                 return func(*args, **kwargs)
+            except APIError:
+                raise
             except HTTPException:
                 raise
             except EmailAlreadyRegisteredError as exc:
@@ -80,6 +99,16 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid email or password.",
+                ) from exc
+            except SellerProfileAlreadyExistsError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Seller profile already exists.",
+                ) from exc
+            except SellerProfileNotFoundError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=str(exc),
                 ) from exc
             except Exception as exc:
                 logger.exception(

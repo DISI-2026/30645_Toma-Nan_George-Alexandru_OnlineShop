@@ -24,7 +24,10 @@ class Seller(Base):
     )
     company_name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    logo_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    tax_id: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    logo_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -38,4 +41,8 @@ class Seller(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="seller")
+
+    @property
+    def logo_url(self) -> str | None:
+        return self.logo_path
 
