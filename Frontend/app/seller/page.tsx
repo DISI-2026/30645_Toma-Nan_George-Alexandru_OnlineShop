@@ -1,19 +1,28 @@
 "use client"
 
-import React, { useState } from "react"
-import { Search, ShoppingCart, User, Menu, Phone, Mail, FileText, Calendar, Package, ShoppingBag, Plus, LogOut, X, Camera, Edit } from "lucide-react"
+import React, { useState, useRef } from "react"
+import Link from "next/link"
+import { Search, ShoppingCart, User, Menu, Phone, Mail, FileText, Calendar, Package, ShoppingBag, Plus, LogOut, X, Camera, Edit, PackagePlus, Upload, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import Link from "next/link"
+
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+import SellerProducts from "@/components/seller/Products"
+import ViewProductModal from "@/components/seller/modals/ViewProductModal"
+import AddProductModal from "@/components/seller/modals/AddProductModal"
+import EditProfileModal from "@/components/seller/modals/EditProfileModal"
 
 export default function SellerProfilePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  //const [activeTab, setActiveTab] = useState("products")
+  const [activeTab, setActiveTab] = useState("products")  //sectiunea de taburi se deschide automat cu cea de products
 
-  //mock data
+  //mock data pentru contul de seller
   const [sellerInfo, setSellerInfo] = useState({
     company_name: "TechGear Pro Solutions S.R.L.",
     created_at: "12 Octombrie 2023, 10:30:45",
@@ -24,23 +33,18 @@ export default function SellerProfilePage() {
     logo_path: ""
   })
 
+  //boolean pt pop up de edit seller info
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [formData, setFormData] = useState(sellerInfo)
 
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    console.log("Sesiunea a fost incheiata.");
-  }
-
-  //fisez datele mock
+  //afisez datele mock de mai sus
   const handleOpenEdit = () => {
     setFormData(sellerInfo) 
     setIsEditModalOpen(true)
   }
 
-  //partea de edit a profilului
+  ////////// EDIT SELLER PROFILE //////////
   const handleSaveProfile = () => {
-    //data curenta pt "created at", "edited at"
     const today = new Date().toLocaleDateString('ro-RO', { 
       day: 'numeric', 
       month: 'long', 
@@ -50,7 +54,6 @@ export default function SellerProfilePage() {
       second: '2-digit' 
     })
 
-    //salvez modif
     setSellerInfo({
       ...formData,
       created_at: today
@@ -58,6 +61,8 @@ export default function SellerProfilePage() {
     
     setIsEditModalOpen(false)
   }
+  
+  //incarc imaginea de profil a sellerului
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -68,10 +73,115 @@ export default function SellerProfilePage() {
       reader.readAsDataURL(file)
     }
   }
-
+  //restul datelor despre seller
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  ////////// ADAUGARE DE PRODUSE //////////
+  const [images, setImages] = useState<File[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false)
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<any>(null)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+
+  //adaugare imagini pentru produse
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files)
+
+      //functie de conditionare a nr de imagini incracate la 10 img/produs
+      setImages((prev) => {
+        
+        const availableSlots = 10 - prev.length
+
+        if (availableSlots <= 0) {
+          alert("Ai atins limita maximă de 10 imagini pentru un produs.")
+          return prev
+        }
+
+        const filesToAdd = newFiles.slice(0, availableSlots)
+        if (newFiles.length > availableSlots) {
+          alert(`Ai selectat prea multe imagini. Doar primele ${availableSlots} au fost adăugate pentru a respecta limita de 10.`)
+        }
+
+        return [...prev, ...filesToAdd]
+      })
+    }
+  }
+
+  //tabel products + popup editare produs + vizualizare detalii produs
+  //inittializea lista cu un produs gol
+  const [productsList, setProductsList] = useState<any[]>([])
+  
+  //sablon adaugare produs la tabel
+  const [newProduct, setNewProduct] = useState({
+    title: "", category: "", price: "", stock: "", description: ""
+  })
+
+  //editare produs
+  const handleAddProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const { name, value } = e.target
+      setNewProduct(prev => ({ ...prev, [name]: value }))
+  }
+
+  //adaugare de produs nou la tabel
+  const handleSaveNewProduct = async () => {
+    const imageUrls = await Promise.all(
+      images.map(
+        (file) =>
+          new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result as string)
+            reader.readAsDataURL(file)
+          })
+      )
+    )
+
+    const productToAdd = {
+      id: Date.now(),
+      title: newProduct.title || "Produs Fără Nume",
+      category: newProduct.category || "Nespecificat",
+      price: newProduct.price || "0.00",
+      stock: newProduct.stock || "0",
+      description: newProduct.description || "Nicio descriere adaugata",
+      images: imageUrls,
+    }
+
+    setProductsList(prev => [...prev, productToAdd])
+    setIsAddProductModalOpen(false)
+    setNewProduct({ title: "", category: "", price: "", stock: "", description: "" })
+    setImages([])
+  }
+
+  //functie de vizualizare detalii produse
+  const handleViewDetails = (product: any) => {
+    setSelectedProduct(product)
+    setCurrentImageIndex(0)
+    setIsViewModalOpen(true)
+  }
+
+  ///////// STERGERE PRODUS //////////
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  //functie de stergere a unui produs
+  const handleDeleteProduct = (id: number) => {
+    // Adăugăm o fereastră mică de confirmare nativă din browser (UX bun)
+    if (window.confirm("Ești sigur că vrei să ștergi acest produs?")) {
+      
+      // Eliminăm produsul din state-ul curent (păstrăm doar produsele cu ID diferit de cel selectat)
+      setProductsList(prev => prev.filter(product => product.id !== id))
+    }
+  }
+
+  //functie deconectare
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    console.log("Sesiunea a fost incheiata.");
   }
 
   return (
@@ -116,10 +226,7 @@ export default function SellerProfilePage() {
       {/* seller info */}
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-start gap-8 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-          
-          {/* Imagine & Detalii Principale */}
           <div className="flex-1 flex flex-col sm:flex-row gap-6">
-            {/* Imagine de profil */}
             <div className="w-24 h-24 sm:w-32 sm:h-32 shrink-0 bg-slate-100 rounded-xl overflow-hidden border-2 border-slate-100 flex items-center justify-center">
               {sellerInfo.logo_path ? (
                 <img src={sellerInfo.logo_path} alt={sellerInfo.company_name} className="w-full h-full object-cover" />
@@ -134,8 +241,6 @@ export default function SellerProfilePage() {
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold uppercase text-slate-500 tracking-wider">Descriere Companie</h3>
                 <p className="text-slate-600 leading-relaxed max-w-2xl">{sellerInfo.description}</p>
-                
-                {/* Butonul de Actualizare sub descriere */}
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -149,7 +254,7 @@ export default function SellerProfilePage() {
             </div>
           </div>
 
-          {/* Card Detalii Contact */}
+          {/* contact */}
           <Card className="w-full md:w-80 shadow-none border-slate-200 bg-slate-50">
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center gap-3 text-slate-700">
@@ -172,8 +277,6 @@ export default function SellerProfilePage() {
                 </div>
                 <span className="text-sm font-medium">CUI: {sellerInfo.tax_id}</span>
               </div>
-
-              {/* Eticheta actualizată */}
               <div className="flex items-center gap-3 text-slate-500 pt-4 border-t border-slate-200">
                 <Calendar className="w-4 h-4 shrink-0" />
                 <span className="text-xs">Ultima actualizare: <br className="hidden sm:block"/> <span className="font-medium text-slate-700">{sellerInfo.created_at}</span></span>
@@ -182,96 +285,85 @@ export default function SellerProfilePage() {
           </Card>
         </div>
       </div>
-      
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <CardHeader className="sticky top-0 bg-white z-10 border-b flex flex-row items-center justify-between py-4">
-              <CardTitle className="text-xl">Actualizare Profil</CardTitle>
-              <Button variant="ghost" size="icon" onClick={() => setIsEditModalOpen(false)}>
-                <X className="w-5 h-5 text-slate-500" />
-              </Button>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              
-              <div className="space-y-2">
-                <Label htmlFor="logo_upload">Imagine Profil</Label>
-                <div className="flex items-center gap-4">
-                  {/* Afișăm un mic preview în interiorul modalului, opțional */}
-                  {formData.logo_path && (
-                    <img 
-                      src={formData.logo_path} 
-                      alt="Preview" 
-                      className="w-10 h-10 rounded-md object-cover border"
-                    />
-                  )}
-                  <Input 
-                    id="logo_upload" 
-                    type="file" 
-                    accept="image/png, image/jpeg, image/jpg"
-                    onChange={handleImageUpload}
-                    className="cursor-pointer file:text-orange-500 file:bg-orange-50 file:border-0 file:mr-4 file:px-4 file:py-1 hover:file:bg-orange-100" 
-                  />
-                </div>
-                <p className="text-xs text-slate-500">
-                  Selectează o imagine din calculatorul tău (JPG, PNG).
-                </p>
+
+      {/* vizualizare a produselor si comenzilor */}
+      <div className="flex-1 bg-slate-100 border-t">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-7xl mx-auto">
+
+            {/* tabelul principal */}
+            <Tabs 
+              value={activeTab} 
+              onValueChange={setActiveTab} 
+              className="w-full"
+            >
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                {/* alegere tabela ce va fi vizualizata */}
+                <TabsList className="bg-white border shadow-sm">
+                  <TabsTrigger value="products" className="flex items-center gap-2">
+                    <Package className="w-4 h-4" /> Products
+                  </TabsTrigger>
+                  <TabsTrigger value="orders" className="flex items-center gap-2">
+                    <ShoppingBag className="w-4 h-4" /> Orders
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* buton add product pt products tab activ */}
+                {activeTab === "products" && (
+                  <Button 
+                    onClick={() => setIsAddProductModalOpen(true)}
+                    className="bg-orange-500 hover:bg-orange-600 text-white shadow-sm"
+                  >
+                    <Plus className="w-4 h-4 mr-2" /> 
+                    Add Product
+                  </Button>
+                )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="company_name">Nume Companie</Label>
-                <Input 
-                  id="company_name" name="company_name" 
-                  value={formData.company_name} onChange={handleInputChange} 
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Descriere</Label>
-                <Textarea 
-                  id="description" name="description" 
-                  value={formData.description} onChange={handleInputChange}
-                  className="min-h-[100px]"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Telefon</Label>
-                  <Input 
-                    id="phone" name="phone" 
-                    value={formData.phone} onChange={handleInputChange} 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tax_id">CUI</Label>
-                  <Input 
-                    id="tax_id" name="tax_id" 
-                    value={formData.tax_id} onChange={handleInputChange} 
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="address">Email Contact</Label>
-                <Input 
-                  id="address" name="address" type="email"
-                  value={formData.address} onChange={handleInputChange} 
-                />
-              </div>
-
-              <div className="pt-4 flex justify-end gap-3 border-t mt-6">
-                <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
-                  Anulare
-                </Button>
-                <Button className="bg-orange-500 hover:bg-orange-600 text-white" onClick={handleSaveProfile}>
-                  Salvează Modificările
-                </Button>
-              </div>
-
-            </CardContent>
-          </Card>
+              {/* tabela de products */}
+              <TabsContent value="products">
+                <SellerProducts 
+                  products={productsList} 
+                  onViewDetails={handleViewDetails}
+                  onDeleteProduct={handleDeleteProduct}
+                /> 
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
+      </div>
+
+      {/* popups */}
+      {isEditModalOpen && (
+        <EditProfileModal
+          formData={formData}
+          onClose={() => setIsEditModalOpen(false)}
+          onSave={handleSaveProfile}
+          onInputChange={handleInputChange}
+          onImageUpload={handleImageUpload}
+        />
+      )}
+
+      {isAddProductModalOpen && (
+        <AddProductModal
+          newProduct={newProduct}
+          images={images}
+          onClose={() => setIsAddProductModalOpen(false)}
+          onSave={handleSaveNewProduct}
+          onProductChange={handleAddProductChange}
+          onCategoryChange={(val) => setNewProduct(prev => ({ ...prev, category: val }))}
+          onImageChange={handleImageChange}
+          onRemoveImage={removeImage}
+        />
+      )}
+
+      {isViewModalOpen && selectedProduct && (
+        <ViewProductModal
+          product={selectedProduct}
+          currentImageIndex={currentImageIndex}
+          onImageSelect={setCurrentImageIndex}
+          onClose={() => setIsViewModalOpen(false)}
+        />
       )}
     </div>
   )
