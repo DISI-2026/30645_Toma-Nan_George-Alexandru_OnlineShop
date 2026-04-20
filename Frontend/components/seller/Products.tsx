@@ -20,9 +20,10 @@ interface SellerProductsProps {
   products: Product[];
   onViewDetails: (product: Product) => void;    //functie de vizualizare detalii in pop-up
   onDeleteProduct: (productId: number) => void; //functie de stergere a unui produs
+  onEditProduct: (product: Product) => void;    //functie de editare a unui produs
 }
 
-export default function SellerProducts({ products, onViewDetails, onDeleteProduct }: SellerProductsProps) {
+export default function SellerProducts({ products, onViewDetails, onDeleteProduct, onEditProduct }: SellerProductsProps) {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden mt-2">
       <table className="w-full text-left border-collapse">
@@ -58,7 +59,7 @@ export default function SellerProducts({ products, onViewDetails, onDeleteProduc
                       variant="ghost" 
                       size="sm" 
                       className="text-orange-500 hover:text-orange-600 hover:bg-orange-50 transition-colors"
-                      onClick={() => console.log("Editare pentru:", product.id)}
+                      onClick={() => onEditProduct(product)}
                     >
                       <Edit className="w-4 h-4 sm:mr-2" /> 
                       <span className="hidden sm:inline">Editare</span>

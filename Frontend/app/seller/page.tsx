@@ -7,16 +7,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 import SellerProducts from "@/components/seller/Products"
 import ViewProductModal from "@/components/seller/modals/ViewProductModal"
 import AddProductModal from "@/components/seller/modals/AddProductModal"
 import EditProfileModal from "@/components/seller/modals/EditProfileModal"
+import EditProductModal from "@/components/seller/modals/EditProductModal"
 
 export default function SellerProfilePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -112,8 +109,8 @@ export default function SellerProfilePage() {
     }
   }
 
-  //tabel products + popup editare produs + vizualizare detalii produs
-  //inittializea lista cu un produs gol
+  //tabel products + vizualizare detalii produs
+  //inittializea lista de produse
   const [productsList, setProductsList] = useState<any[]>([])
   
   //sablon adaugare produs la tabel
@@ -121,7 +118,7 @@ export default function SellerProfilePage() {
     title: "", category: "", price: "", stock: "", description: ""
   })
 
-  //editare produs
+  //adaugare produs
   const handleAddProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       const { name, value } = e.target
       setNewProduct(prev => ({ ...prev, [name]: value }))
@@ -161,6 +158,23 @@ export default function SellerProfilePage() {
     setSelectedProduct(product)
     setCurrentImageIndex(0)
     setIsViewModalOpen(true)
+  }
+
+  ///////// EDITARE PRODUS //////////
+  const [isEditProductModalOpen, setIsEditProductModalOpen] = useState(false)
+  const [productToEdit, setProductToEdit] = useState<any>(null)
+
+  const handleEditProduct = (product: any) => {
+    setProductToEdit(product)
+    setIsEditProductModalOpen(true)
+  }
+
+  const handleSaveEditedProduct = (updatedProduct: any) => {
+    setProductsList(prev =>
+      prev.map(p => p.id === updatedProduct.id ? updatedProduct : p)
+    )
+    setIsEditProductModalOpen(false)
+    setProductToEdit(null)
   }
 
   ///////// STERGERE PRODUS //////////
@@ -326,6 +340,7 @@ export default function SellerProfilePage() {
                   products={productsList} 
                   onViewDetails={handleViewDetails}
                   onDeleteProduct={handleDeleteProduct}
+                  onEditProduct={handleEditProduct}
                 /> 
               </TabsContent>
             </Tabs>
@@ -363,6 +378,14 @@ export default function SellerProfilePage() {
           currentImageIndex={currentImageIndex}
           onImageSelect={setCurrentImageIndex}
           onClose={() => setIsViewModalOpen(false)}
+        />
+      )}
+
+      {isEditProductModalOpen && productToEdit && (
+        <EditProductModal
+          product={productToEdit}
+          onClose={() => { setIsEditProductModalOpen(false); setProductToEdit(null) }}
+          onSave={handleSaveEditedProduct}
         />
       )}
     </div>
