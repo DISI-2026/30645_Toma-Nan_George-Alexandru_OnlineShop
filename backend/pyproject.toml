@@ -11,11 +11,22 @@ dependencies = [
     "fastapi>=0.135.3,<0.136.0",
     "uvicorn[standard]>=0.44.0,<0.45.0",
     "sqlalchemy>=2.0.49,<2.1.0",
-    "pydantic>=2.13.0,<2.14.0"
+    "pydantic>=2.13.0,<2.14.0",
+    "python-multipart>=0.0.20,<0.0.21"
+]
+
+[dependency-groups]
+dev = [
+    "aiosqlite>=0.21.0,<0.22.0",
+    "httpx>=0.28.1,<0.29.0",
+    "pytest>=8.4.2,<9.0.0",
+    "pytest-asyncio>=1.2.0,<2.0.0",
 ]
 
 [project.scripts]
 backend = "backend.main:main"
+init-db = "backend.db_schema:init_db_cli"
+reset-db = "backend.db_schema:reset_db_cli"
 
 [build-system]
 requires = ["uv_build>=0.11.4,<0.12.0"]

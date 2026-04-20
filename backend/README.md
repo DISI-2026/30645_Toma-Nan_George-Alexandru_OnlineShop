@@ -32,6 +32,24 @@ uv sync
 
 That creates `.venv` and installs the project dependencies.
 
+## Database Schema
+
+This repo currently uses SQLAlchemy models, but no formal migration tool.
+
+Current team workflow:
+- update the SQLAlchemy models in `src/models/`
+- if the schema changes, recreate/reset the local development database
+- do not assume old local data must be preserved yet
+
+Helper commands:
+
+```bash
+uv run init-db
+uv run reset-db
+```
+
+See [DB_WORKFLOW.md](DB_WORKFLOW.md) for the short workflow.
+
 ## Start the backend
 
 From the `backend` folder:

@@ -15,6 +15,9 @@ class SellerMeDTO(BaseModel):
 
     company_name: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=4000)
+    phone: str | None = Field(default=None, max_length=50)
+    address: str | None = Field(default=None, max_length=500)
+    tax_id: str | None = Field(default=None, max_length=20)
     logo_url: str | None = Field(default=None, max_length=1024)
 
 

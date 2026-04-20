@@ -49,6 +49,9 @@ async def me(
         seller = SellerMeDTO(
             company_name=user.seller.company_name,
             description=user.seller.description,
+            phone=user.seller.phone,
+            address=user.seller.address,
+            tax_id=user.seller.tax_id,
             logo_url=user.seller.logo_url,
         )
 

@@ -1,3 +1,6 @@
+from collections.abc import AsyncIterator
+
+from fastapi import Request
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -35,3 +38,9 @@ async def ensure_schema(engine: AsyncEngine) -> None:
 async def disconnect(engine: AsyncEngine | None) -> None:
     if isinstance(engine, AsyncEngine):
         await engine.dispose()
+
+
+async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
+    session_factory: async_sessionmaker[AsyncSession] = request.app.state.db_sessionmaker
+    async with session_factory() as session:
+        yield session
