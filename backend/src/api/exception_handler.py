@@ -14,6 +14,7 @@ from application.usecases.auth import (
     InvalidBuyerPreferenceCategoriesError,
     InvalidCredentialsError,
 )
+from api.dependencies.seller import SellerNotFoundError
 from application.usecases.products import (
     CategoryNotFoundError,
     InvalidFieldError,
@@ -70,7 +71,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=str(exc),
                     ) from exc
-                except ProductNotFoundError as exc:
+                except (ProductNotFoundError, SellerNotFoundError) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=str(exc),
@@ -80,12 +81,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail=str(exc),
                     ) from exc
-                except CategoryNotFoundError as exc:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=str(exc),
-                    ) from exc
-                except InvalidFieldError as exc:
+                except (CategoryNotFoundError, InvalidFieldError) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=str(exc),
