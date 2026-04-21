@@ -35,3 +35,14 @@ def verify_password(password: str, password_hash: str) -> bool:
 
     # Temporary fallback for pre-existing data that may not be stored in PBKDF2 format.
     return hmac.compare_digest(password, password_hash)
+
+
+def password_matches_minimum_requirements(password: str) -> bool:
+    if len(password) < 8 or len(password) > 255:
+        return False
+
+    has_lowercase = any(character.islower() for character in password)
+    has_uppercase = any(character.isupper() for character in password)
+    has_digit = any(character.isdigit() for character in password)
+    has_symbol = any(not character.isalnum() for character in password)
+    return has_lowercase and has_uppercase and has_digit and has_symbol

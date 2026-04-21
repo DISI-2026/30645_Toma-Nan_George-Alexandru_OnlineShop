@@ -4,6 +4,7 @@ import base64
 import hashlib
 import hmac
 import json
+import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -70,4 +71,12 @@ def decode_access_token(token: str, *, secret_key: str) -> AuthTokenPayload:
         raise InvalidAccessTokenError("Token expired.")
 
     return AuthTokenPayload(user_id=user_id, role=role, expires_at=expires_at)
+
+
+def create_password_reset_token() -> str:
+    return secrets.token_urlsafe(48)
+
+
+def hash_password_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
