@@ -11,8 +11,10 @@ from fastapi import HTTPException, status
 from backend.api.errors import APIError
 from application.usecases.auth import (
     EmailAlreadyRegisteredError,
+    InvalidOrExpiredResetTokenError,
     InvalidBuyerPreferenceCategoriesError,
     InvalidCredentialsError,
+    PasswordDoesNotMatchMinimumRequirementsError,
 )
 from application.usecases.sellers import (
     SellerProfileAlreadyExistsError,
@@ -44,7 +46,11 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_409_CONFLICT,
                         detail="Email is already registered.",
                     ) from exc
-                except InvalidBuyerPreferenceCategoriesError as exc:
+                except (
+                    InvalidBuyerPreferenceCategoriesError,
+                    InvalidOrExpiredResetTokenError,
+                    PasswordDoesNotMatchMinimumRequirementsError,
+                ) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=str(exc),
@@ -90,7 +96,11 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Email is already registered.",
                 ) from exc
-            except InvalidBuyerPreferenceCategoriesError as exc:
+            except (
+                InvalidBuyerPreferenceCategoriesError,
+                InvalidOrExpiredResetTokenError,
+                PasswordDoesNotMatchMinimumRequirementsError,
+            ) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=str(exc),
