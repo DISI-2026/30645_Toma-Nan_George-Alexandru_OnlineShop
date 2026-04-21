@@ -10,6 +10,7 @@ from .buyer_category_preference import buyer_category_preferences
 
 if TYPE_CHECKING:
     from .buyer import Buyer
+    from .product import Product
 
 
 class Category(Base):
@@ -35,3 +36,4 @@ class Category(Base):
         secondary=buyer_category_preferences,
         back_populates="preferred_categories",
     )
+    products: Mapped[list[Product]] = relationship(back_populates="category")
