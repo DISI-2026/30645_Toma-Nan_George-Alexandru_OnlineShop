@@ -1,19 +1,36 @@
 /**
  * Servicii API pentru autentificare
+ * Backend: http://localhost:8000
+ * Toate endpoint-urile: /api/v1/auth/...
+ * Token-ul se setează ca HTTP-only cookie de backend
  */
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
-export interface RegisterData {
+// ==================== INTERFACES ====================
+
+export interface BuyerRegisterData {
   email: string
   password: string
-  role: string
+  role: "buyer"
+  address: string | null
+  preferred_category_ids: number[]
 }
 
+export interface SellerRegisterData {
+  email: string
+  password: string
+  role: "seller"
+  company_name: string
+  description: string | null
+  logo_url: string | null
+}
+
+export type RegisterData = BuyerRegisterData | SellerRegisterData
+
 export interface RegisterResponse {
-  message: string
-  user?: {
-    id: string
+  user: {
+    id: number
     email: string
     role: string
   }
@@ -25,63 +42,55 @@ export interface LoginData {
 }
 
 export interface LoginResponse {
-  access_token: string
-  token_type: string
   user: {
-    id: string
+    id: number
     email: string
     role: string
   }
 }
 
+// ==================== API FUNCTIONS ====================
+
 /**
  * Înregistrează un utilizator nou
- * 
- * @param data - Datele de înregistrare (email, password, role)
- * @returns Promise cu răspunsul de la server
- * @throws Error dacă înregistrarea eșuează
+ * Endpoint: POST /api/v1/auth/register
  */
 export async function registerUser(data: RegisterData): Promise<RegisterResponse> {
   try {
-    const response = await fetch(`${API_URL}/auth/register`, {
+    const response = await fetch(`${API_URL}/api/v1/auth/register`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(data),
     })
 
     const responseData = await response.json()
 
     if (!response.ok) {
-      // Gestionăm erorile de la backend
+      if (response.status === 409) {
+        throw new Error("Email-ul este deja înregistrat")
+      }
       throw new Error(responseData.message || responseData.detail || "Eroare la înregistrare")
     }
 
     return responseData
   } catch (error) {
-    // Re-aruncăm eroarea pentru a fi gestionată în componenta
-    if (error instanceof Error) {
-      throw error
-    }
+    if (error instanceof Error) throw error
     throw new Error("Eroare de rețea. Verifică conexiunea la internet.")
   }
 }
 
 /**
  * Autentifică un utilizator
- * 
- * @param data - Datele de autentificare (email, password)
- * @returns Promise cu răspunsul de la server (token + user info)
- * @throws Error dacă autentificarea eșuează
+ * Endpoint: POST /api/v1/auth/login
+ * Token-ul se setează automat ca HTTP-only cookie de backend
  */
 export async function loginUser(data: LoginData): Promise<LoginResponse> {
   try {
-    const response = await fetch(`${API_URL}/auth/login`, {
+    const response = await fetch(`${API_URL}/api/v1/auth/login`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(data),
     })
 
@@ -93,9 +102,72 @@ export async function loginUser(data: LoginData): Promise<LoginResponse> {
 
     return responseData
   } catch (error) {
-    if (error instanceof Error) {
-      throw error
+    if (error instanceof Error) throw error
+    throw new Error("Eroare de rețea. Verifică conexiunea la internet.")
+  }
+}
+
+/**
+ * Logout - backend-ul șterge cookie-ul
+ * Endpoint: POST /api/v1/auth/logout
+ */
+export async function logoutUser(): Promise<void> {
+  try {
+    await fetch(`${API_URL}/api/v1/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    })
+  } catch {
+    // Chiar dacă request-ul eșuează, ștergem datele locale
+  }
+}
+
+/**
+ * Trimite cerere de resetare parolă
+ * Endpoint: POST /api/v1/auth/forgot-password
+ */
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  try {
+    const response = await fetch(`${API_URL}/api/v1/auth/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    })
+
+    const responseData = await response.json()
+
+    if (!response.ok) {
+      throw new Error(responseData.message || responseData.detail || "Eroare la trimiterea email-ului")
     }
+
+    return responseData
+  } catch (error) {
+    if (error instanceof Error) throw error
+    throw new Error("Eroare de rețea. Verifică conexiunea la internet.")
+  }
+}
+
+/**
+ * Resetează parola cu token-ul primit pe email
+ * Endpoint: POST /api/v1/auth/reset-password
+ */
+export async function resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+  try {
+    const response = await fetch(`${API_URL}/api/v1/auth/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, new_password: newPassword }),
+    })
+
+    const responseData = await response.json()
+
+    if (!response.ok) {
+      throw new Error(responseData.message || responseData.detail || "Eroare la resetarea parolei")
+    }
+
+    return responseData
+  } catch (error) {
+    if (error instanceof Error) throw error
     throw new Error("Eroare de rețea. Verifică conexiunea la internet.")
   }
 }
