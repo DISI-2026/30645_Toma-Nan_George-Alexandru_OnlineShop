@@ -6,18 +6,19 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from api.dependencies.auth import ACCESS_TOKEN_COOKIE_NAME
 from application.security import create_access_token, hash_password_pbkdf2
 from models import Seller, User, UserRole
 
 
-def auth_headers(user_id: int, role: str) -> dict[str, str]:
+def auth_cookies(user_id: int, role: str) -> dict[str, str]:
     token = create_access_token(
         user_id=user_id,
         role=role,
         secret_key="test-secret",
         expires_in_minutes=60,
     )
-    return {"Authorization": f"Bearer {token}"}
+    return {ACCESS_TOKEN_COOKIE_NAME: token}
 
 
 async def seed_seller_user(session_factory: async_sessionmaker):
@@ -76,10 +77,10 @@ async def test_get_public_profile_not_found(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_get_private_profile_missing_returns_404(client: AsyncClient, session_factory):
     await seed_seller_user(session_factory)
-    headers = auth_headers(user_id=1, role="seller")
+    cookies = auth_cookies(user_id=1, role="seller")
 
     print("\n=== GET /api/v1/sellers/me (Private Profile - Not Created) ===")
-    response = await client.get("/api/v1/sellers/me", headers=headers)
+    response = await client.get("/api/v1/sellers/me", cookies=cookies)
     print(f"Status: {response.status_code}")
     print(f"Response: {response.json()}")
 
@@ -100,7 +101,7 @@ async def test_get_private_profile_requires_access_token(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_create_profile_with_logo(client: AsyncClient, session_factory):
     await seed_seller_user(session_factory)
-    headers = auth_headers(user_id=1, role="seller")
+    cookies = auth_cookies(user_id=1, role="seller")
 
     print("\n=== POST /api/v1/sellers/me (Create Profile) ===")
     print("Input data:")
@@ -113,7 +114,7 @@ async def test_create_profile_with_logo(client: AsyncClient, session_factory):
 
     response = await client.post(
         "/api/v1/sellers/me",
-        headers=headers,
+        cookies=cookies,
         data={
             "company_name": "Tech Store",
             "description": "We sell the best electronics.",
@@ -140,11 +141,11 @@ async def test_create_profile_with_logo(client: AsyncClient, session_factory):
 async def test_create_profile_duplicate_conflict(client: AsyncClient, session_factory):
     await seed_seller_user(session_factory)
     await seed_seller_profile(session_factory)
-    headers = auth_headers(user_id=1, role="seller")
+    cookies = auth_cookies(user_id=1, role="seller")
 
     response = await client.post(
         "/api/v1/sellers/me",
-        headers=headers,
+        cookies=cookies,
         data={"company_name": "Another Store"},
     )
 
@@ -155,7 +156,7 @@ async def test_create_profile_duplicate_conflict(client: AsyncClient, session_fa
 async def test_update_profile_updates_fields(client: AsyncClient, session_factory):
     await seed_seller_user(session_factory)
     await seed_seller_profile(session_factory)
-    headers = auth_headers(user_id=1, role="seller")
+    cookies = auth_cookies(user_id=1, role="seller")
 
     print("\n=== PATCH /api/v1/sellers/me (Update Profile) ===")
     print("Input data:")
@@ -164,7 +165,7 @@ async def test_update_profile_updates_fields(client: AsyncClient, session_factor
 
     patch_response = await client.patch(
         "/api/v1/sellers/me",
-        headers=headers,
+        cookies=cookies,
         data={"description": "Updated description", "address": "Bucharest"},
     )
 
@@ -183,11 +184,11 @@ async def test_update_profile_updates_fields(client: AsyncClient, session_factor
 async def test_update_profile_replaces_logo(client: AsyncClient, session_factory):
     await seed_seller_user(session_factory)
     await seed_seller_profile(session_factory)
-    headers = auth_headers(user_id=1, role="seller")
+    cookies = auth_cookies(user_id=1, role="seller")
 
     patch_response = await client.patch(
         "/api/v1/sellers/me",
-        headers=headers,
+        cookies=cookies,
         files={"logo": ("logo.webp", io.BytesIO(b"newdata"), "image/webp")},
     )
 

@@ -16,7 +16,10 @@ class LoggedInUserDTO(BaseModel):
     role: str
 
 
-class LoginResponseDTO(BaseModel):
+class LoginResultDTO(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    user: LoggedInUserDTO
+
+
+class LoginResponseDTO(BaseModel):
     user: LoggedInUserDTO

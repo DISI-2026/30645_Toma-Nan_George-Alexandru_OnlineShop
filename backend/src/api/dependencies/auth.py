@@ -3,12 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from application.security.tokens import InvalidAccessTokenError
 from application.security import decode_access_token
 
-bearer_scheme = HTTPBearer(auto_error=False)
+ACCESS_TOKEN_COOKIE_NAME = "access_token"
+AUTH_COOKIE_PATH = "/"
+AUTH_COOKIE_SAMESITE = "lax"
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,11 +18,9 @@ class AuthContext:
     role: str
 
 
-async def get_auth_context(
-    request: Request,
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-) -> AuthContext:
-    if credentials is None:
+async def get_auth_context(request: Request) -> AuthContext:
+    access_token = request.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
+    if not access_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing access token.",
@@ -30,7 +29,7 @@ async def get_auth_context(
     settings = request.app.state.settings
     secret_key = settings.auth_secret_key
     try:
-        payload = decode_access_token(credentials.credentials, secret_key=secret_key)
+        payload = decode_access_token(access_token, secret_key=secret_key)
     except InvalidAccessTokenError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
