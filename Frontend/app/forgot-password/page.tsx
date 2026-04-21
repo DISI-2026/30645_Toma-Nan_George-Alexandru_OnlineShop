@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
 import { ArrowLeft, Mail, Loader2 } from "lucide-react"
+import { forgotPassword } from "@/lib/api/auth"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
@@ -25,19 +26,7 @@ export default function ForgotPasswordPage() {
     setIsLoading(true)
 
     try {
-      // TODO: Înlocuiește cu API-ul real când îl primești de la backend
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/auth/forgot-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || "Eroare la trimiterea email-ului")
-      }
+      await forgotPassword(email)
 
       setEmailSent(true)
       toast.success("Email trimis!", {

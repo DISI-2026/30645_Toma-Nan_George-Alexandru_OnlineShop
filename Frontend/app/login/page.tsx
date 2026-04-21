@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from "sonner"
 import { loginSchema, type LoginFormData } from "@/lib/validations/auth"
 import { loginUser } from "@/lib/api/auth"
-import { saveAuthToken, saveUser, getRedirectPath } from "@/lib/auth-utils"
+import { saveUser, getRedirectPath } from "@/lib/auth-utils"
 import { Loader2, Eye, EyeOff } from "lucide-react"
 
 export default function LoginPage() {
@@ -41,8 +41,7 @@ export default function LoginPage() {
         password: data.password,
       })
 
-      // Salvăm token-ul și informațiile utilizatorului
-      saveAuthToken(response.access_token)
+      // Salvăm informațiile utilizatorului (token-ul e în HTTP-only cookie)
       saveUser(response.user)
 
       toast.success("Autentificare reușită!", {

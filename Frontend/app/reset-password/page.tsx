@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
 import { ArrowLeft, Loader2, CheckCircle2 } from "lucide-react"
+import { resetPassword } from "@/lib/api/auth"
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -72,22 +73,7 @@ export default function ResetPasswordPage() {
     setIsLoading(true)
 
     try {
-      // TODO: Înlocuiește cu API-ul real când îl primești de la backend
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/auth/reset-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          token,
-          new_password: password,
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || "Eroare la resetarea parolei")
-      }
+      await resetPassword(token, password)
 
       setResetSuccess(true)
       toast.success("Parolă resetată cu succes!", {

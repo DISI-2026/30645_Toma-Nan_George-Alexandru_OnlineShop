@@ -25,6 +25,17 @@ async def app(tmp_path: Path):
     engine = create_async_engine(os.environ["DATABASE_URL"], future=True)
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+        from sqlalchemy import text
+        await connection.execute(
+            text("""
+                CREATE TRIGGER IF NOT EXISTS products_updated_at
+                AFTER UPDATE ON products
+                FOR EACH ROW
+                BEGIN
+                    UPDATE products SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+                END;
+            """)
+        )
 
     factory = async_sessionmaker(engine, expire_on_commit=False)
     application.state.db_sessionmaker = factory
