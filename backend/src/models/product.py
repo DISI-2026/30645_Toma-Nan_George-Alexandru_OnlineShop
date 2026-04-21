@@ -11,6 +11,7 @@ from .base import Base
 
 if TYPE_CHECKING:
     from .category import Category
+    from .product_image import ProductImage
     from .seller import Seller
 
 
@@ -29,6 +30,7 @@ class Product(Base):
         nullable=False,
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
+    slug: Mapped[str] = mapped_column(String(250), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     stock: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -49,3 +51,7 @@ class Product(Base):
 
     seller: Mapped[Seller] = relationship(back_populates="products")
     category: Mapped[Category] = relationship(back_populates="products")
+    images: Mapped[list[ProductImage]] = relationship(
+        back_populates="product",
+        cascade="all, delete-orphan",
+    )

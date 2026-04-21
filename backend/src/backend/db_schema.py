@@ -33,6 +33,37 @@ async def _create_triggers(connection: AsyncConnection) -> None:
             EXECUTE FUNCTION update_updated_at();
         """)
     )
+    
+    await connection.execute(
+        text("""
+            CREATE OR REPLACE FUNCTION enforce_max_product_images()
+            RETURNS TRIGGER AS $$
+            DECLARE
+                image_count INT;
+            BEGIN
+                SELECT COUNT(*) INTO image_count
+                FROM product_images
+                WHERE product_id = NEW.product_id;
+                
+                IF image_count >= 10 THEN
+                    RAISE EXCEPTION 'Product cannot have more than 10 images';
+                END IF;
+                
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+        """)
+    )
+    
+    await connection.execute(
+        text("""
+            DROP TRIGGER IF EXISTS check_max_product_images ON product_images;
+            CREATE TRIGGER check_max_product_images
+            BEFORE INSERT ON product_images
+            FOR EACH ROW
+            EXECUTE FUNCTION enforce_max_product_images();
+        """)
+    )
 
 
 async def initialize_schema(engine: AsyncEngine) -> None:
