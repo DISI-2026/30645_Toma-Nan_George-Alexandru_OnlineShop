@@ -14,6 +14,15 @@ class CreateProductRequestDTO(BaseModel):
     category_id: int = Field(..., gt=0)
 
 
+class CreateProductImageMetadataDTO(BaseModel):
+    display_order: int = Field(..., ge=0)
+    is_thumbnail: bool
+
+
+class CreateProductImagesMetadataRequestDTO(BaseModel):
+    images: list[CreateProductImageMetadataDTO]
+
+
 class ProductImageDTO(BaseModel):
     id: int
     path: str

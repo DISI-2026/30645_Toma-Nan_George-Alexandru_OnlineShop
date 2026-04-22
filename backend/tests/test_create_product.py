@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 from decimal import Decimal
 from pathlib import Path
 
@@ -171,6 +172,190 @@ async def test_create_product_with_images_success(
         product = result.scalar_one()
         assert product is not None
         assert len(product.images) == 3
+
+
+@pytest.mark.asyncio
+async def test_create_product_with_explicit_image_metadata_success(
+    client: AsyncClient,
+    seed_data,
+    seller1_cookies: dict,
+):
+    image1 = create_test_image("JPEG")
+    image2 = create_test_image("PNG")
+    image3 = create_test_image("WEBP")
+
+    response = await client.post(
+        "/api/v1/sellers/me/products",
+        cookies=seller1_cookies,
+        data={
+            "title": "Camera Kit Pro",
+            "description": "Mirrorless camera bundle with three product shots",
+            "price": "1599.99",
+            "stock": "12",
+            "category_id": str(seed_data["electronics_id"]),
+            "images_metadata": json.dumps(
+                [
+                    {"display_order": 2, "is_thumbnail": False},
+                    {"display_order": 0, "is_thumbnail": True},
+                    {"display_order": 1, "is_thumbnail": False},
+                ]
+            ),
+        },
+        files=[
+            ("images", ("image1.jpg", image1, "image/jpeg")),
+            ("images", ("image2.png", image2, "image/png")),
+            ("images", ("image3.webp", image3, "image/webp")),
+        ],
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+
+    assert len(data["images"]) == 3
+    assert data["images"][0]["display_order"] == 0
+    assert data["images"][0]["is_thumbnail"] is True
+    assert data["images"][0]["path"].endswith(".png")
+    assert data["images"][1]["display_order"] == 1
+    assert data["images"][1]["is_thumbnail"] is False
+    assert data["images"][1]["path"].endswith(".webp")
+    assert data["images"][2]["display_order"] == 2
+    assert data["images"][2]["is_thumbnail"] is False
+    assert data["images"][2]["path"].endswith(".jpg")
+
+
+@pytest.mark.asyncio
+async def test_create_product_rejects_image_metadata_length_mismatch(
+    client: AsyncClient,
+    seed_data,
+    seller1_cookies: dict,
+):
+    image1 = create_test_image("JPEG")
+    image2 = create_test_image("PNG")
+
+    response = await client.post(
+        "/api/v1/sellers/me/products",
+        cookies=seller1_cookies,
+        data={
+            "title": "Metadata Mismatch Product",
+            "description": "Product create should reject partial image metadata payloads",
+            "price": "199.99",
+            "stock": "8",
+            "category_id": str(seed_data["electronics_id"]),
+            "images_metadata": json.dumps(
+                [
+                    {"display_order": 0, "is_thumbnail": True},
+                ]
+            ),
+        },
+        files=[
+            ("images", ("image1.jpg", image1, "image/jpeg")),
+            ("images", ("image2.png", image2, "image/png")),
+        ],
+    )
+
+    assert response.status_code == 400
+    assert "metadata" in get_error_message(response.json()).lower()
+
+
+@pytest.mark.asyncio
+async def test_create_product_rejects_multiple_thumbnails_in_metadata(
+    client: AsyncClient,
+    seed_data,
+    seller1_cookies: dict,
+):
+    image1 = create_test_image("JPEG")
+    image2 = create_test_image("PNG")
+
+    response = await client.post(
+        "/api/v1/sellers/me/products",
+        cookies=seller1_cookies,
+        data={
+            "title": "Multiple Thumbnail Product",
+            "description": "Product create should reject multiple thumbnails in image metadata",
+            "price": "299.99",
+            "stock": "6",
+            "category_id": str(seed_data["electronics_id"]),
+            "images_metadata": json.dumps(
+                [
+                    {"display_order": 0, "is_thumbnail": True},
+                    {"display_order": 1, "is_thumbnail": True},
+                ]
+            ),
+        },
+        files=[
+            ("images", ("image1.jpg", image1, "image/jpeg")),
+            ("images", ("image2.png", image2, "image/png")),
+        ],
+    )
+
+    assert response.status_code == 400
+    error_msg = get_error_message(response.json()).lower()
+    assert "exactly one" in error_msg or "thumbnail" in error_msg
+
+
+@pytest.mark.asyncio
+async def test_create_product_rejects_duplicate_display_order_in_metadata(
+    client: AsyncClient,
+    seed_data,
+    seller1_cookies: dict,
+):
+    image1 = create_test_image("JPEG")
+    image2 = create_test_image("PNG")
+
+    response = await client.post(
+        "/api/v1/sellers/me/products",
+        cookies=seller1_cookies,
+        data={
+            "title": "Duplicate Order Product",
+            "description": "Product create should reject duplicate display order values",
+            "price": "399.99",
+            "stock": "4",
+            "category_id": str(seed_data["electronics_id"]),
+            "images_metadata": json.dumps(
+                [
+                    {"display_order": 0, "is_thumbnail": True},
+                    {"display_order": 0, "is_thumbnail": False},
+                ]
+            ),
+        },
+        files=[
+            ("images", ("image1.jpg", image1, "image/jpeg")),
+            ("images", ("image2.png", image2, "image/png")),
+        ],
+    )
+
+    assert response.status_code == 400
+    error_msg = get_error_message(response.json()).lower()
+    assert "display_order" in error_msg or "duplicate" in error_msg
+
+
+@pytest.mark.asyncio
+async def test_create_product_rejects_invalid_image_metadata_json(
+    client: AsyncClient,
+    seed_data,
+    seller1_cookies: dict,
+):
+    image1 = create_test_image("JPEG")
+
+    response = await client.post(
+        "/api/v1/sellers/me/products",
+        cookies=seller1_cookies,
+        data={
+            "title": "Invalid Metadata Product",
+            "description": "Product create should reject malformed image metadata json",
+            "price": "99.99",
+            "stock": "3",
+            "category_id": str(seed_data["electronics_id"]),
+            "images_metadata": "not valid json",
+        },
+        files=[
+            ("images", ("image1.jpg", image1, "image/jpeg")),
+        ],
+    )
+
+    assert response.status_code == 400
+    error_msg = get_error_message(response.json()).lower()
+    assert "images_metadata" in error_msg or "json" in error_msg
 
 
 @pytest.mark.asyncio

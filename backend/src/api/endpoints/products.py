@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from typing import Annotated
 
@@ -12,6 +13,7 @@ from api.dependencies.db import get_db_session
 from api.dependencies.seller import get_current_seller
 from api.exception_handler import handle_route_exceptions
 from application.dtos.products import (
+    CreateProductImagesMetadataRequestDTO,
     CreateProductRequestDTO,
     CreateProductResponseDTO,
     UpdateProductImagesRequestDTO,
@@ -20,6 +22,7 @@ from application.dtos.products import (
 )
 from application.usecases.products import (
     CreateProductUseCase,
+    InvalidFieldError,
     ProcessImagesUseCase,
     UpdateProductImagesUseCase,
     UpdateProductUseCase,
@@ -40,6 +43,7 @@ async def create_product(
     stock: Annotated[int, Form(...)],
     category_id: Annotated[int, Form(...)],
     images: list[UploadFile] = File(default=[]),
+    images_metadata: Annotated[str | None, Form()] = None,
 ) -> CreateProductResponseDTO:
     request_dto = CreateProductRequestDTO(
         title=title,
@@ -48,12 +52,23 @@ async def create_product(
         stock=stock,
         category_id=category_id,
     )
+    images_metadata_dto = None
+    if images_metadata is not None:
+        try:
+            images_metadata_dto = CreateProductImagesMetadataRequestDTO.model_validate(
+                {"images": json.loads(images_metadata)}
+            )
+        except (json.JSONDecodeError, ValueError, TypeError) as exc:
+            raise InvalidFieldError(
+                "images_metadata",
+                "images_metadata must be a valid JSON array of {display_order, is_thumbnail} objects.",
+            ) from exc
     
     create_product_usecase = CreateProductUseCase(session)
     product = await create_product_usecase.execute(seller.id, request_dto)
     
     process_images_usecase = ProcessImagesUseCase(session)
-    await process_images_usecase.execute(product, images)
+    await process_images_usecase.execute(product, images, images_metadata_dto)
     
     result = await session.execute(
         select(Product).where(Product.id == product.id).options(selectinload(Product.images))
