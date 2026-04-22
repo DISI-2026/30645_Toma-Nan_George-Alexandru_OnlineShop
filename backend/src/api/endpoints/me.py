@@ -9,6 +9,7 @@ from api.dependencies.auth import AuthContext, get_auth_context
 from api.dependencies.db import get_db_session
 from api.exception_handler import handle_route_exceptions
 from application.dtos.auth.me_dto import BuyerMeDTO, MeResponseDTO, SellerMeDTO
+from application.usecases.auth import GetBuyerMeUseCase
 from models import Buyer, User
 
 router = APIRouter(tags=["auth"])
@@ -20,6 +21,7 @@ async def me(
     auth_context: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_db_session),
 ) -> MeResponseDTO:
+    buyer_me_use_case = GetBuyerMeUseCase()
     statement = (
         select(User)
         .where(User.id == auth_context.user_id)
@@ -37,12 +39,7 @@ async def me(
 
     buyer: BuyerMeDTO | None = None
     if user.buyer is not None:
-        buyer = BuyerMeDTO(
-            address=user.buyer.address,
-            preferred_category_ids=sorted(
-                category.id for category in user.buyer.preferred_categories
-            ),
-        )
+        buyer = buyer_me_use_case.execute(user)
 
     seller: SellerMeDTO | None = None
     if user.seller is not None:
