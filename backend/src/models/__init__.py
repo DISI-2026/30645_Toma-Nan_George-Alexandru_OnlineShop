@@ -2,6 +2,7 @@ from .base import Base
 from .buyer import Buyer
 from .buyer_category_preference import buyer_category_preferences
 from .category import Category
+from .notification import Notification, NotificationType
 from .order import Order, OrderStatus
 from .order_item import OrderItem
 from .order_status_history import OrderStatusHistory
@@ -17,6 +18,8 @@ __all__ = [
     "Buyer",
     "buyer_category_preferences",
     "Category",
+    "Notification",
+    "NotificationType",
     "Order",
     "OrderItem",
     "OrderStatus",

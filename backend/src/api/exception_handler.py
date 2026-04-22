@@ -35,6 +35,10 @@ from application.usecases.orders import (
     OrderAccessDeniedError,
     OrderNotFoundError,
 )
+from application.usecases.notifications import (
+    NotificationAccessDeniedError,
+    NotificationNotFoundError,
+)
 from application.usecases.sellers import (
     SellerProfileAlreadyExistsError,
     SellerProfileNotFoundError,
@@ -89,7 +93,11 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=str(exc),
                     ) from exc
-                except (OrderNotFoundError, BuyerProfileNotFoundError) as exc:
+                except (
+                    OrderNotFoundError,
+                    BuyerProfileNotFoundError,
+                    NotificationNotFoundError,
+                ) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=str(exc),
@@ -99,7 +107,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=str(exc),
                     ) from exc
-                except OrderAccessDeniedError as exc:
+                except (OrderAccessDeniedError, NotificationAccessDeniedError) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail=str(exc),
@@ -194,12 +202,16 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=str(exc),
                 ) from exc
-            except (OrderNotFoundError, BuyerProfileNotFoundError) as exc:
+            except (
+                OrderNotFoundError,
+                BuyerProfileNotFoundError,
+                NotificationNotFoundError,
+            ) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=str(exc),
                 ) from exc
-            except OrderAccessDeniedError as exc:
+            except (OrderAccessDeniedError, NotificationAccessDeniedError) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=str(exc),

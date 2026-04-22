@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from application.usecases.notifications import NotificationService
 from application.dtos.orders import (
     OrderBuyerSummaryDTO,
     OrderDetailsResponseDTO,
@@ -124,6 +125,7 @@ class GetOrderDetailsUseCase:
                 selectinload(Order.items),
                 selectinload(Order.status_history),
                 selectinload(Order.buyer).selectinload(Buyer.user),
+                selectinload(Order.seller).selectinload(Seller.user),
             )
         )
         order = (await self._session.execute(statement)).scalar_one_or_none()
@@ -204,6 +206,7 @@ class UpdateOrderStatusUseCase(GetOrderDetailsUseCase):
                 changed_by_role=actor.role,
             )
         )
+        self._create_status_notification(order, actor.role, request.status)
 
         await self._session.commit()
         await self._session.refresh(order)
@@ -234,3 +237,34 @@ class UpdateOrderStatusUseCase(GetOrderDetailsUseCase):
             OrderStatus.SHIPPED: [OrderStatus.DELIVERED],
         }
         return transitions.get(current_status, [])
+
+    def _create_status_notification(
+        self,
+        order: Order,
+        actor_role: str,
+        next_status: OrderStatus,
+    ) -> None:
+        service = NotificationService(self._session)
+
+        if next_status == OrderStatus.CANCELLED:
+            if actor_role == "buyer":
+                service.create_order_cancelled_by_buyer_notification(
+                    order.seller.user_id,
+                    order_id=order.id,
+                    order_number=order.order_number,
+                )
+            elif actor_role == "seller":
+                service.create_order_cancelled_by_seller_notification(
+                    order.buyer.user_id,
+                    order_id=order.id,
+                    order_number=order.order_number,
+                )
+            return
+
+        if actor_role == "seller":
+            service.create_order_status_changed_notification(
+                order.buyer.user_id,
+                order_id=order.id,
+                order_number=order.order_number,
+                status=next_status.value,
+            )
