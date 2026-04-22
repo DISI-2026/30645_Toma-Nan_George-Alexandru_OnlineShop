@@ -2,11 +2,11 @@
 
 import React, { useState, useRef } from "react"
 import Link from "next/link"
-import { Search, ShoppingCart, User, Menu, Phone, Mail, FileText, Calendar, Package, ShoppingBag, Plus, LogOut, X, Camera, Edit, PackagePlus, Upload, Eye } from "lucide-react"
+import { Search, Menu, Phone, Mail, FileText, Calendar, Package, ShoppingBag, Plus, LogOut, Camera, Edit, Bell, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 import SellerProducts from "@/components/seller/Products"
@@ -194,6 +194,21 @@ export default function SellerProfilePage() {
     }
   }
 
+  ////////// NOTIFICARI //////////
+  const [notifications, setNotifications] = useState([
+    { id: 1, text: "Comanda #ORD-7421 a fost plasată.", read: false },
+    { id: 2, text: "Stoc scăzut pentru produsul 'Wireless Headphones Pro'.", read: false },
+    { id: 3, text: "Comanda #ORD-8532 a fost actualizată la status 'Shipped'.", read: false },
+  ])
+  const [isNotifOpen, setIsNotifOpen] = useState(false)
+  const unreadCount = notifications.filter(n => !n.read).length
+
+  const handleOpenNotif = () => {
+    setIsNotifOpen(prev => !prev)
+    // marcheaza toate ca citite dupa ce se deschide popup-ul
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+  }
+
   //functie deconectare
   const handleLogout = () => {
     localStorage.removeItem('access_token');
@@ -222,8 +237,49 @@ export default function SellerProfilePage() {
                 <Button size="sm" className="absolute right-1 top-1 bg-orange-500 text-white"><Search className="w-4 h-4" /></Button>
               </div>
             </div>
-            {/* deconectare */}
+            {/* deconectare si notificari */}
             <div className="flex items-center">
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-slate-700 relative"
+                    onClick={handleOpenNotif}
+                  >
+                    <Bell className="w-5 h-5" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </Button>
+
+                  {/* popup notificari */}
+                  {isNotifOpen && (
+                    <div className="absolute right-0 top-10 w-80 bg-white rounded-xl shadow-2xl border border-slate-100 z-50 animate-in fade-in zoom-in-95 duration-200">
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                        <span className="font-semibold text-slate-800 text-sm">Notificări</span>
+                        <Button variant="ghost" size="icon" className="w-6 h-6" onClick={() => setIsNotifOpen(false)}>
+                          <X className="w-4 h-4 text-slate-400" />
+                        </Button>
+                      </div>
+                      <ul className="divide-y divide-slate-50 max-h-72 overflow-y-auto">
+                        {notifications.length === 0 ? (
+                          <li className="px-4 py-6 text-center text-sm text-slate-400 italic">
+                            Nicio notificare.
+                          </li>
+                        ) : (
+                          notifications.map(n => (
+                            <li key={n.id} className="px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                              {n.text}
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
                <Link href="/" onClick={handleLogout}>
                  <Button 
                    variant="outline" 
