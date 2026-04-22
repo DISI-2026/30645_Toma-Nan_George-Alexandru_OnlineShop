@@ -29,6 +29,12 @@ from application.usecases.products import (
     SellerCategoryMismatchError,
     TooManyImagesError,
 )
+from application.usecases.orders import (
+    BuyerProfileNotFoundError,
+    InvalidOrderStatusTransitionError,
+    OrderAccessDeniedError,
+    OrderNotFoundError,
+)
 from application.usecases.sellers import (
     SellerProfileAlreadyExistsError,
     SellerProfileNotFoundError,
@@ -83,9 +89,19 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=str(exc),
                     ) from exc
+                except (OrderNotFoundError, BuyerProfileNotFoundError) as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=str(exc),
+                    ) from exc
                 except (ProductNotFoundError, SellerNotFoundError, CategoryNotFoundError) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
+                        detail=str(exc),
+                    ) from exc
+                except OrderAccessDeniedError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
                         detail=str(exc),
                     ) from exc
                 except ProductNotOwnedBySellerError as exc:
@@ -101,6 +117,11 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                 except DuplicateSlugError as exc:
                     raise HTTPException(
                         status_code=status.HTTP_409_CONFLICT,
+                        detail=str(exc),
+                    ) from exc
+                except InvalidOrderStatusTransitionError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                         detail=str(exc),
                     ) from exc
                 except (
@@ -166,6 +187,56 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
             except SellerProfileNotFoundError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
+                    detail=str(exc),
+                ) from exc
+            except (ProductNotFoundError, SellerNotFoundError, CategoryNotFoundError) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=str(exc),
+                ) from exc
+            except (OrderNotFoundError, BuyerProfileNotFoundError) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=str(exc),
+                ) from exc
+            except OrderAccessDeniedError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=str(exc),
+                ) from exc
+            except ProductNotOwnedBySellerError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=str(exc),
+                ) from exc
+            except SellerCategoryMismatchError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=str(exc),
+                ) from exc
+            except DuplicateSlugError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=str(exc),
+                ) from exc
+            except InvalidOrderStatusTransitionError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=str(exc),
+                ) from exc
+            except (
+                InvalidFieldError,
+                InvalidImageFormatError,
+                ImageTooLargeError,
+                TooManyImagesError,
+            ) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=str(exc),
+                ) from exc
+            except ValidationError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
                     detail=str(exc),
                 ) from exc
             except Exception as exc:

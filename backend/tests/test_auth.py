@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from api.dependencies.auth import ACCESS_TOKEN_COOKIE_NAME
 from application.security import (
+    create_access_token,
     create_password_reset_token,
     hash_password_pbkdf2,
     hash_password_reset_token,
@@ -345,3 +346,51 @@ async def test_patch_me_allows_partial_update_for_phone_only(
         "min": "50.00",
         "max": "250.00",
     }
+
+
+@pytest.mark.asyncio
+async def test_me_accepts_bearer_token_header(
+    client: AsyncClient,
+    session_factory: async_sessionmaker,
+):
+    await seed_auth_cookie_user(session_factory)
+    token = create_access_token(
+        user_id=1,
+        role="seller",
+        secret_key="test-secret",
+        expires_in_minutes=60,
+    )
+
+    response = await client.get(
+        "/api/v1/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["email"] == "seller@example.com"
+    assert payload["role"] == "seller"
+
+
+@pytest.mark.asyncio
+async def test_bearer_token_takes_precedence_over_invalid_cookie(
+    client: AsyncClient,
+    session_factory: async_sessionmaker,
+):
+    await seed_auth_cookie_user(session_factory)
+    token = create_access_token(
+        user_id=1,
+        role="seller",
+        secret_key="test-secret",
+        expires_in_minutes=60,
+    )
+
+    client.cookies.set(ACCESS_TOKEN_COOKIE_NAME, "stale.invalid.token")
+    response = await client.get(
+        "/api/v1/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["email"] == "seller@example.com"
