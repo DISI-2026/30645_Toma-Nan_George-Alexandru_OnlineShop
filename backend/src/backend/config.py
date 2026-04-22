@@ -10,6 +10,11 @@ class Settings:
     database_url: str
     auth_secret_key: str
     access_token_ttl_minutes: int
+    frontend_base_url: str
+    password_reset_token_ttl_minutes: int
+    smtp_host: str
+    smtp_port: int
+    smtp_from_email: str
     cors_origins: list[str]
     media_root: Path
     max_logo_size_bytes: int
@@ -39,6 +44,13 @@ def get_settings() -> Settings:
             "change-this-in-production",
         ),
         access_token_ttl_minutes=int(os.getenv("ACCESS_TOKEN_TTL_MINUTES", "60")),
+        frontend_base_url=os.getenv("FRONTEND_BASE_URL", "http://localhost:3000"),
+        password_reset_token_ttl_minutes=int(
+            os.getenv("PASSWORD_RESET_TOKEN_TTL_MINUTES", "30")
+        ),
+        smtp_host=os.getenv("SMTP_HOST", "localhost"),
+        smtp_port=int(os.getenv("SMTP_PORT", "1025")),
+        smtp_from_email=os.getenv("SMTP_FROM_EMAIL", "no-reply@onlineshop.ro"),
         cors_origins=cors_origins,
         media_root=Path(os.getenv("MEDIA_ROOT", backend_root / "media")),
         max_logo_size_bytes=int(os.getenv("MAX_LOGO_SIZE_BYTES", str(2 * 1024 * 1024))),

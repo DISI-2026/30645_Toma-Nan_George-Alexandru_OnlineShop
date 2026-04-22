@@ -9,14 +9,20 @@ from api.dependencies.auth import (
 from api.dependencies.db import get_db_session
 from api.exception_handler import handle_route_exceptions
 from application.dtos.auth import (
+    ForgotPasswordRequestDTO,
+    ForgotPasswordResponseDTO,
     LoginRequestDTO,
     LoginResponseDTO,
+    ResetPasswordRequestDTO,
+    ResetPasswordResponseDTO,
     RegisterRequestDTO,
     RegisterResponseDTO,
 )
 from application.usecases.auth import (
+    ForgotPasswordUseCase,
     LoginUseCase,
     RegisterUseCase,
+    ResetPasswordUseCase,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -60,6 +66,28 @@ async def login(
         samesite=AUTH_COOKIE_SAMESITE,
     )
     return LoginResponseDTO(user=login_result.user)
+
+
+@router.post("/forgot-password", response_model=ForgotPasswordResponseDTO)
+@handle_route_exceptions()
+async def forgot_password(
+    http_request: Request,
+    request: ForgotPasswordRequestDTO,
+    session: AsyncSession = Depends(get_db_session),
+) -> ForgotPasswordResponseDTO:
+    settings = http_request.app.state.settings
+    use_case = ForgotPasswordUseCase(session, settings)
+    return await use_case.execute(request)
+
+
+@router.post("/reset-password", response_model=ResetPasswordResponseDTO)
+@handle_route_exceptions()
+async def reset_password(
+    request: ResetPasswordRequestDTO,
+    session: AsyncSession = Depends(get_db_session),
+) -> ResetPasswordResponseDTO:
+    use_case = ResetPasswordUseCase(session)
+    return await use_case.execute(request)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
