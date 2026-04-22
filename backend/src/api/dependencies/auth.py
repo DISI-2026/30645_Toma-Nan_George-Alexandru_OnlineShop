@@ -19,7 +19,16 @@ class AuthContext:
 
 
 async def get_auth_context(request: Request) -> AuthContext:
-    access_token = request.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
+    access_token = None
+    authorization = request.headers.get("Authorization")
+    if authorization:
+        scheme, _, credentials = authorization.partition(" ")
+        if scheme.lower() == "bearer" and credentials:
+            access_token = credentials.strip()
+
+    if not access_token:
+        access_token = request.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
+
     if not access_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

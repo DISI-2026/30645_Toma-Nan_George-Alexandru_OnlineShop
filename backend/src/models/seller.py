@@ -11,6 +11,7 @@ from .seller_category import seller_categories
 
 if TYPE_CHECKING:
     from .category import Category
+    from .order import Order
     from .product import Product
     from .user import User
 
@@ -49,8 +50,8 @@ class Seller(Base):
         secondary=seller_categories,
         back_populates="sellers",
     )
+    orders: Mapped[list[Order]] = relationship(back_populates="seller")
 
     @property
     def logo_url(self) -> str | None:
         return self.logo_path
-

@@ -11,6 +11,7 @@ from .base import Base
 
 if TYPE_CHECKING:
     from .category import Category
+    from .order_item import OrderItem
     from .product_image import ProductImage
     from .seller import Seller
 
@@ -55,3 +56,4 @@ class Product(Base):
         back_populates="product",
         cascade="all, delete-orphan",
     )
+    order_items: Mapped[list[OrderItem]] = relationship(back_populates="product")
