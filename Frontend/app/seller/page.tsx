@@ -3,13 +3,15 @@
 import React, { useState, useRef } from "react"
 import Link from "next/link"
 import { Search, ShoppingCart, User, Menu, Phone, Mail, FileText, Calendar, Package, ShoppingBag, Plus, LogOut, X, Camera, Edit, PackagePlus, Upload, Eye } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 import SellerProducts from "@/components/seller/Products"
+import SellerOrders from "@/components/seller/Orders"
+
 import ViewProductModal from "@/components/seller/modals/ViewProductModal"
 import AddProductModal from "@/components/seller/modals/AddProductModal"
 import EditProfileModal from "@/components/seller/modals/EditProfileModal"
@@ -342,6 +344,9 @@ export default function SellerProfilePage() {
                   onDeleteProduct={handleDeleteProduct}
                   onEditProduct={handleEditProduct}
                 /> 
+              </TabsContent>
+              <TabsContent value="orders">
+                <SellerOrders />
               </TabsContent>
             </Tabs>
           </div>
