@@ -49,7 +49,7 @@ async def me(
             phone=user.seller.phone,
             address=user.seller.address,
             tax_id=user.seller.tax_id,
-            logo_url=user.seller.logo_url,
+            logo_url=user.seller.logo_path,
         )
 
     return MeResponseDTO(

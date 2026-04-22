@@ -51,7 +51,3 @@ class Seller(Base):
         back_populates="sellers",
     )
     orders: Mapped[list[Order]] = relationship(back_populates="seller")
-
-    @property
-    def logo_url(self) -> str | None:
-        return self.logo_path
