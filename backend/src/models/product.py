@@ -4,7 +4,8 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, func
+from slugify import slugify
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, event, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -57,3 +58,12 @@ class Product(Base):
         cascade="all, delete-orphan",
     )
     order_items: Mapped[list[OrderItem]] = relationship(back_populates="product")
+
+
+@event.listens_for(Product, "before_insert")
+def populate_product_slug(_: object, __: object, target: Product) -> None:
+    if target.slug:
+        return
+
+    base = slugify(target.title or "", max_length=250).strip("-")
+    target.slug = base or "product"

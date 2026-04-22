@@ -143,7 +143,7 @@ async def test_reset_password_success(
     )
 
     assert response.status_code == 200
-    assert response.json() == {"message": "Parola a fost resetatÄƒ cu succes"}
+    assert response.json() == {"message": "Parola a fost resetată cu succes"}
 
     async with session_factory() as session:
         refreshed_user = (
