@@ -8,7 +8,12 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from api.router import api_router
-from .api.errors import APIError, api_error_handler, http_exception_handler, validation_error_handler
+from .api.errors import (
+    APIError,
+    api_error_handler,
+    http_exception_handler,
+    validation_error_handler,
+)
 from .config import get_settings
 from .db import connect, disconnect, ensure_schema
 from .db_schema import initialize_schema, reset_schema

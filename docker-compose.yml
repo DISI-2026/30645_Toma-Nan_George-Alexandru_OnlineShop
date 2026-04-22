@@ -10,6 +10,11 @@ services:
             DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/onlineshop
             AUTO_INIT_DB: "true"
             RESET_DB_ON_STARTUP: "true"
+            FRONTEND_BASE_URL: http://frontend:3000
+            PASSWORD_RESET_TOKEN_TTL_MINUTES: 30
+            SMTP_HOST: mailpit
+            SMTP_PORT: 1025
+            SMTP_FROM_EMAIL: no-reply@onlineshop.ro
         depends_on:
             db:
                 condition: service_healthy
@@ -41,3 +46,9 @@ services:
             interval: 10s
             timeout: 5s
             retries: 5
+
+    mailpit:
+        image: axllent/mailpit:latest
+        ports:
+            - "8025:8025" # web UI
+            - "1025:1025" # SMTP
