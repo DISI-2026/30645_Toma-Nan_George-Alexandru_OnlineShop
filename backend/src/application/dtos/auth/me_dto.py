@@ -41,22 +41,20 @@ class UpdateBuyerPriceRangeDTO(BaseModel):
 
     @model_validator(mode="after")
     def validate_range(self) -> "UpdateBuyerPriceRangeDTO":
-        if (
-            self.min is not None
-            and self.max is not None
-            and self.max < self.min
-        ):
+        if self.min is not None and self.max is not None and self.max < self.min:
             raise ValueError("preferences.price_range.max must be >= min.")
         return self
 
 
 class UpdateBuyerPreferencesDTO(BaseModel):
-    favorite_categories: list[int]
-    price_range: UpdateBuyerPriceRangeDTO
+    favorite_categories: list[int] | None = None
+    price_range: UpdateBuyerPriceRangeDTO | None = None
 
     @model_validator(mode="after")
     def validate_favorite_categories(self) -> "UpdateBuyerPreferencesDTO":
-        if any(category_id <= 0 for category_id in self.favorite_categories):
+        if self.favorite_categories and any(
+            category_id <= 0 for category_id in self.favorite_categories
+        ):
             raise ValueError(
                 "preferences.favorite_categories must contain only positive ids."
             )
@@ -66,9 +64,10 @@ class UpdateBuyerPreferencesDTO(BaseModel):
 class UpdateBuyerProfileRequestDTO(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    full_name: str | None = Field(max_length=255)
-    address: str | None = Field(max_length=500)
-    preferences: UpdateBuyerPreferencesDTO
+    full_name: str | None = Field(max_length=255, default=None)
+    phone: str | None = Field(max_length=50, default=None)
+    address: str | None = Field(max_length=500, default=None)
+    preferences: UpdateBuyerPreferencesDTO | None = None
 
 
 class SellerMeDTO(BaseModel):
@@ -90,4 +89,3 @@ class MeResponseDTO(BaseModel):
     role: str
     buyer: BuyerMeDTO | None = None
     seller: SellerMeDTO | None = None
-

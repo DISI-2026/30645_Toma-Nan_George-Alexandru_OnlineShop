@@ -296,6 +296,7 @@ async def test_patch_me_updates_buyer_profile(
         "/api/v1/buyer/me",
         json={
             "full_name": "Updated Buyer",
+            "phone": "+40722222222",
             "address": "Bucharest",
             "preferences": {
                 "favorite_categories": [new_category_id],
@@ -307,6 +308,7 @@ async def test_patch_me_updates_buyer_profile(
     assert response.status_code == 200
     payload = response.json()
     assert payload["full_name"] == "Updated Buyer"
+    assert payload["phone"] == "+40722222222"
     assert payload["address"] == "Bucharest"
     assert payload["preferences"]["favorite_categories"] == [
         {"category_id": new_category_id, "category_name": "Home"}
@@ -314,4 +316,32 @@ async def test_patch_me_updates_buyer_profile(
     assert payload["preferences"]["price_range"] == {
         "min": "100.00",
         "max": "600.00",
+    }
+
+
+@pytest.mark.asyncio
+async def test_patch_me_allows_partial_update_for_phone_only(
+    client: AsyncClient,
+    session_factory: async_sessionmaker,
+):
+    await seed_buyer_user(session_factory)
+    login_response = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "buyer@example.com", "password": "password123"},
+    )
+    assert login_response.status_code == 200
+
+    response = await client.patch(
+        "/api/v1/buyer/me",
+        json={"phone": "+40733333333"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["full_name"] == "Buyer Name"
+    assert payload["phone"] == "+40733333333"
+    assert payload["address"] == "Cluj-Napoca"
+    assert payload["preferences"]["price_range"] == {
+        "min": "50.00",
+        "max": "250.00",
     }
