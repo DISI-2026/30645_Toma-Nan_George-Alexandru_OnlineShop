@@ -51,11 +51,26 @@ export function isAuthenticated(): boolean {
 }
 
 /**
+ * Obține token-ul de autentificare (pentru compatibilitate)
+ * Notă: Token-ul real este în HTTP-only cookie, această funcție returnează null
+ */
+export function getAuthToken(): string | null {
+  return null
+}
+
+/**
  * Logout complet - șterge user din localStorage
  * (cookie-ul se șterge prin API call la /api/v1/auth/logout)
  */
 export function clearLocalAuth(): void {
   removeUser()
+}
+
+/**
+ * Logout - alias pentru clearLocalAuth
+ */
+export function logout(): void {
+  clearLocalAuth()
 }
 
 /**
