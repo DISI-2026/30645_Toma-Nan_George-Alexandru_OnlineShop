@@ -2,7 +2,7 @@ export interface ProductImage {
   id: number
   url: string
   is_thumbnail: boolean
-  order: number
+  display_order: number
 }
 
 export interface ProductCategory {

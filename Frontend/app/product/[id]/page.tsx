@@ -94,11 +94,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
   const outOfStock = isOutOfStock(product)
 
-  // thumbnail first, after by order
   const sortedImages: ProductImage[] = [...product.images].sort((a, b) => {
     if (a.is_thumbnail && !b.is_thumbnail) return -1
     if (!a.is_thumbnail && b.is_thumbnail) return 1
-    return a.order - b.order
+    return a.display_order - b.display_order
   })
 
   const currentImageUrl = sortedImages[selectedImage]?.url ?? "/placeholder.svg"
@@ -148,7 +147,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               <div className="grid grid-cols-4 gap-2">
                 {sortedImages.map((img, index) => (
                   <button
-                    key={img.id}
+                    key={`img-${img.id}-${index}`}
                     onClick={() => setSelectedImage(index)}
                     className={`aspect-square bg-white rounded-md p-2 border-2 ${selectedImage === index ? "border-blue-500" : "border-gray-200"}`}
                   >
@@ -227,7 +226,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                     className="border rounded px-3 py-1"
                   >
                     {[...Array(Math.min(product.stock, 10))].map((_, i) => (
-                      <option key={i} value={i + 1}>{i + 1}</option>
+                      <option key={`qty-${i + 1}`} value={i + 1}>{i + 1}</option>
                     ))}
                   </select>
                 </div>
