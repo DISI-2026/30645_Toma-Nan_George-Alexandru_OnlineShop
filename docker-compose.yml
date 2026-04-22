@@ -15,9 +15,14 @@ services:
             SMTP_HOST: mailpit
             SMTP_PORT: 1025
             SMTP_FROM_EMAIL: no-reply@onlineshop.ro
+            # For persistent data later, disable automatic resets:
+            # RESET_DB_ON_STARTUP: "false"
         depends_on:
             db:
                 condition: service_healthy
+        # Uncomment to persist uploaded files on the host:
+        # volumes:
+        #     - ./backend/media:/app/media
         healthcheck:
             test:
                 [
@@ -41,6 +46,9 @@ services:
             POSTGRES_PASSWORD: postgres
         tmpfs:
             - /var/lib/postgresql/data
+        # Uncomment this and remove tmpfs above to persist Postgres data:
+        # volumes:
+        #     - postgres_data:/var/lib/postgresql/data
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -U postgres -d onlineshop"]
             interval: 10s
@@ -52,3 +60,7 @@ services:
         ports:
             - "8025:8025" # web UI
             - "1025:1025" # SMTP
+
+# Uncomment when enabling persistent Postgres storage:
+# volumes:
+#     postgres_data:

@@ -16,6 +16,7 @@ from .update_product_usecase import (
     ProductNotOwnedBySellerError,
     UpdateProductUseCase,
 )
+from .update_product_images_usecase import UpdateProductImagesUseCase
 
 __all__ = [
     "CategoryNotFoundError",
@@ -29,5 +30,6 @@ __all__ = [
     "ProductNotOwnedBySellerError",
     "SellerCategoryMismatchError",
     "TooManyImagesError",
+    "UpdateProductImagesUseCase",
     "UpdateProductUseCase",
 ]
