@@ -18,13 +18,7 @@ const MOCK_BUYER: BuyerProfile = {
   full_name: "Ion Popescu",
   email: "ion.popescu@example.com",
   phone: "0721 234 567",
-  address: {
-    street: "Strada Memorandumului 12",
-    city: "Cluj-Napoca",
-    county: "Cluj",
-    postal_code: "400000",
-    country: "Romania",
-  },
+  address: "Strada Memorandumului 12, Cluj-Napoca, Cluj, 400000, Romania",
   preferences: {
     favorite_categories: [
       { id: "cat-electronice", name: "Electronice" },

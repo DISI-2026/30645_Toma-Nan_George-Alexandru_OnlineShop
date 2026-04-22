@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { User, ShoppingCart, Save, MapPin, Settings, Loader2, Search, LogOut, Menu } from "lucide-react"
+import { User, Save, MapPin, Settings, Loader2, Search, LogOut, Menu } from "lucide-react"
 import { logout } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -62,12 +62,14 @@ export default function BuyerProfilePage() {
           phone: profile.phone ?? "",
         })
         if (profile.address) {
+          // Parse address string back to fields
+          const parts = profile.address.split(',').map(p => p.trim())
           setAddress({
-            street: profile.address.street ?? "",
-            city: profile.address.city ?? "",
-            county: profile.address.county ?? "",
-            postal_code: profile.address.postal_code ?? "",
-            country: profile.address.country ?? "Romania",
+            street: parts[0] || "",
+            city: parts[1] || "",
+            county: parts[2] || "",
+            postal_code: parts[3] || "",
+            country: parts[4] || "Romania",
           })
         }
         if (profile.preferences) {
@@ -130,7 +132,15 @@ export default function BuyerProfilePage() {
     }
     setAddressLoading(true)
     try {
-      await updateBuyerProfile({ address })
+      const addressString = [
+        address.street,
+        address.city,
+        address.county,
+        address.postal_code,
+        address.country
+      ].filter(Boolean).join(', ')
+      
+      await updateBuyerProfile({ address: addressString })
       toast.success("Adresă salvată cu succes!")
     } catch (err) {
       toast.error("Eroare la salvare", {
