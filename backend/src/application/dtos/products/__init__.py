@@ -3,6 +3,10 @@ from .create_product_dto import (
     CreateProductResponseDTO,
     ProductImageDTO,
 )
+from .update_product_images_dto import (
+    UpdateProductImageDTO,
+    UpdateProductImagesRequestDTO,
+)
 from .update_product_dto import (
     UpdateProductRequestDTO,
     UpdateProductResponseDTO,
@@ -12,6 +16,8 @@ __all__ = [
     "CreateProductRequestDTO",
     "CreateProductResponseDTO",
     "ProductImageDTO",
+    "UpdateProductImageDTO",
+    "UpdateProductImagesRequestDTO",
     "UpdateProductRequestDTO",
     "UpdateProductResponseDTO",
 ]

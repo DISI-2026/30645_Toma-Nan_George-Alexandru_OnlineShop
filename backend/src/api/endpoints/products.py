@@ -14,12 +14,14 @@ from api.exception_handler import handle_route_exceptions
 from application.dtos.products import (
     CreateProductRequestDTO,
     CreateProductResponseDTO,
+    UpdateProductImagesRequestDTO,
     UpdateProductRequestDTO,
     UpdateProductResponseDTO,
 )
 from application.usecases.products import (
     CreateProductUseCase,
     ProcessImagesUseCase,
+    UpdateProductImagesUseCase,
     UpdateProductUseCase,
 )
 from models import Product, Seller
@@ -59,6 +61,19 @@ async def create_product(
     product_with_images = result.scalar_one()
     
     return CreateProductResponseDTO.model_validate(product_with_images)
+
+
+@router.patch("/{product_id}/images", response_model=CreateProductResponseDTO)
+@handle_route_exceptions()
+async def update_product_images(
+    product_id: int,
+    seller: Annotated[Seller, Depends(get_current_seller)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    request: UpdateProductImagesRequestDTO = Body(...),
+) -> CreateProductResponseDTO:
+    use_case = UpdateProductImagesUseCase(session)
+    product = await use_case.execute(seller.id, product_id, request)
+    return CreateProductResponseDTO.model_validate(product)
 
 
 @router.patch("/{product_id}", response_model=UpdateProductResponseDTO)

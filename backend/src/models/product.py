@@ -54,4 +54,5 @@ class Product(Base):
     images: Mapped[list[ProductImage]] = relationship(
         back_populates="product",
         cascade="all, delete-orphan",
+        order_by="ProductImage.display_order",
     )

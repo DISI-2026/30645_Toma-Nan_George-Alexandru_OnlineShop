@@ -11,6 +11,16 @@ from application.security.tokens import create_access_token
 from models import Category, Product, Seller, User, UserRole
 
 
+def auth_cookies(user_id: int, role: str) -> dict[str, str]:
+    token = create_access_token(
+        user_id=user_id,
+        role=role,
+        secret_key="test-secret",
+        expires_in_minutes=60,
+    )
+    return {"access_token": token}
+
+
 @pytest.mark.asyncio
 async def test_updated_at_auto_updates_on_product_modification(
     client: AsyncClient,
@@ -33,6 +43,7 @@ async def test_updated_at_auto_updates_on_product_modification(
             seller_id=seller.id,
             category_id=category.id,
             title="Test Product",
+            slug="test-product",
             price=Decimal("100.00"),
             stock=10,
         )
@@ -75,6 +86,7 @@ async def test_updated_at_updates_on_availability_status_change(
             seller_id=seller.id,
             category_id=category.id,
             title="Test Book",
+            slug="test-book",
             price=Decimal("20.00"),
             stock=5,
             is_available=True,
@@ -118,6 +130,7 @@ async def test_updated_at_does_not_update_on_select_queries(
             seller_id=seller.id,
             category_id=category.id,
             title="Test Shirt",
+            slug="test-shirt",
             price=Decimal("30.00"),
             stock=15,
         )
@@ -156,6 +169,7 @@ async def test_updated_at_persists_correctly_in_database(
             seller_id=seller.id,
             category_id=category.id,
             title="Test Toy",
+            slug="test-toy",
             price=Decimal("25.00"),
             stock=20,
         )
@@ -206,6 +220,7 @@ async def test_seller_cannot_update_another_sellers_product(
             seller_id=seller_b.id,
             category_id=category.id,
             title="Seller B Product",
+            slug="seller-b-product",
             price=Decimal("100.00"),
             stock=10,
         )
@@ -213,12 +228,12 @@ async def test_seller_cannot_update_another_sellers_product(
         await session.commit()
         product_id = product.id
         
-        token_a = create_access_token(user_id=user_a.id, role="seller", secret_key="test-secret", expires_in_minutes=60)
+        cookies_a = auth_cookies(user_a.id, "seller")
     
     response = await client.patch(
         f"/api/v1/sellers/me/products/{product_id}",
         json={"price": 99.99},
-        headers={"Authorization": f"Bearer {token_a}"}
+        cookies=cookies_a,
     )
     
     assert response.status_code == 403
@@ -246,6 +261,7 @@ async def test_update_single_field_title_only(
             seller_id=seller.id,
             category_id=category.id,
             title="Old Title",
+            slug="old-title",
             price=Decimal("50.00"),
             stock=10,
         )
@@ -253,12 +269,12 @@ async def test_update_single_field_title_only(
         await session.commit()
         product_id = product.id
         
-        token = create_access_token(user_id=user.id, role="seller", secret_key="test-secret", expires_in_minutes=60)
+        cookies = auth_cookies(user.id, "seller")
     
     response = await client.patch(
         f"/api/v1/sellers/me/products/{product_id}",
         json={"title": "New Title"},
-        headers={"Authorization": f"Bearer {token}"}
+        cookies=cookies,
     )
     
     assert response.status_code == 200
@@ -290,6 +306,7 @@ async def test_update_multiple_fields(
             seller_id=seller.id,
             category_id=category.id,
             title="A",
+            slug="a",
             price=Decimal("50.00"),
             stock=10,
         )
@@ -297,12 +314,12 @@ async def test_update_multiple_fields(
         await session.commit()
         product_id = product.id
         
-        token = create_access_token(user_id=user.id, role="seller", secret_key="test-secret", expires_in_minutes=60)
+        cookies = auth_cookies(user.id, "seller")
     
     response = await client.patch(
         f"/api/v1/sellers/me/products/{product_id}",
         json={"title": "B", "price": 75.50, "stock": 5},
-        headers={"Authorization": f"Bearer {token}"}
+        cookies=cookies,
     )
     
     assert response.status_code == 200
@@ -334,6 +351,7 @@ async def test_invalid_price_rejected(
             seller_id=seller.id,
             category_id=category.id,
             title="Test Product",
+            slug="test-product-home",
             price=Decimal("100.00"),
             stock=10,
         )
@@ -341,12 +359,12 @@ async def test_invalid_price_rejected(
         await session.commit()
         product_id = product.id
         
-        token = create_access_token(user_id=user.id, role="seller", secret_key="test-secret", expires_in_minutes=60)
+        cookies = auth_cookies(user.id, "seller")
     
     response = await client.patch(
         f"/api/v1/sellers/me/products/{product_id}",
         json={"price": -10},
-        headers={"Authorization": f"Bearer {token}"}
+        cookies=cookies,
     )
     
     assert response.status_code == 400
@@ -374,6 +392,7 @@ async def test_invalid_stock_rejected(
             seller_id=seller.id,
             category_id=category.id,
             title="Test Product",
+            slug="test-product-garden",
             price=Decimal("100.00"),
             stock=10,
         )
@@ -381,12 +400,12 @@ async def test_invalid_stock_rejected(
         await session.commit()
         product_id = product.id
         
-        token = create_access_token(user_id=user.id, role="seller", secret_key="test-secret", expires_in_minutes=60)
+        cookies = auth_cookies(user.id, "seller")
     
     response = await client.patch(
         f"/api/v1/sellers/me/products/{product_id}",
         json={"stock": -5},
-        headers={"Authorization": f"Bearer {token}"}
+        cookies=cookies,
     )
     
     assert response.status_code == 400
@@ -406,12 +425,12 @@ async def test_non_existent_product_returns_404(
         session.add(seller)
         await session.commit()
         
-        token = create_access_token(user_id=user.id, role="seller", secret_key="test-secret", expires_in_minutes=60)
+        cookies = auth_cookies(user.id, "seller")
     
     response = await client.patch(
         "/api/v1/sellers/me/products/99999",
         json={"price": 100},
-        headers={"Authorization": f"Bearer {token}"}
+        cookies=cookies,
     )
     
     assert response.status_code == 404
@@ -439,6 +458,7 @@ async def test_toggle_availability_to_false(
             seller_id=seller.id,
             category_id=category.id,
             title="Test Food",
+            slug="test-food",
             price=Decimal("10.00"),
             stock=100,
             is_available=True,
@@ -447,12 +467,12 @@ async def test_toggle_availability_to_false(
         await session.commit()
         product_id = product.id
         
-        token = create_access_token(user_id=user.id, role="seller", secret_key="test-secret", expires_in_minutes=60)
+        cookies = auth_cookies(user.id, "seller")
     
     response = await client.patch(
         f"/api/v1/sellers/me/products/{product_id}",
         json={"is_available": False},
-        headers={"Authorization": f"Bearer {token}"}
+        cookies=cookies,
     )
     
     assert response.status_code == 200
@@ -482,6 +502,7 @@ async def test_patch_triggers_updated_at_update(
             seller_id=seller.id,
             category_id=category.id,
             title="Test Album",
+            slug="test-album",
             price=Decimal("15.00"),
             stock=50,
         )
@@ -491,14 +512,14 @@ async def test_patch_triggers_updated_at_update(
         initial_updated_at = product.updated_at
         product_id = product.id
         
-        token = create_access_token(user_id=user.id, role="seller", secret_key="test-secret", expires_in_minutes=60)
+        cookies = auth_cookies(user.id, "seller")
     
     await asyncio.sleep(1.1)
     
     response = await client.patch(
         f"/api/v1/sellers/me/products/{product_id}",
         json={"price": 100},
-        headers={"Authorization": f"Bearer {token}"}
+        cookies=cookies,
     )
     
     assert response.status_code == 200
@@ -531,6 +552,7 @@ async def test_response_includes_updated_at_timestamp(
             seller_id=seller.id,
             category_id=category.id,
             title="Test Art",
+            slug="test-art",
             price=Decimal("200.00"),
             stock=1,
         )
@@ -538,12 +560,12 @@ async def test_response_includes_updated_at_timestamp(
         await session.commit()
         product_id = product.id
         
-        token = create_access_token(user_id=user.id, role="seller", secret_key="test-secret", expires_in_minutes=60)
+        cookies = auth_cookies(user.id, "seller")
     
     response = await client.patch(
         f"/api/v1/sellers/me/products/{product_id}",
         json={"price": 250},
-        headers={"Authorization": f"Bearer {token}"}
+        cookies=cookies,
     )
     
     assert response.status_code == 200
