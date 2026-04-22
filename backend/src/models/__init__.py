@@ -4,7 +4,9 @@ from .buyer_category_preference import buyer_category_preferences
 from .category import Category
 from .password_reset_token import PasswordResetToken
 from .product import Product
+from .product_image import ProductImage
 from .seller import Seller
+from .seller_category import seller_categories
 from .user import User, UserRole
 
 __all__ = [
@@ -14,7 +16,9 @@ __all__ = [
     "Category",
     "PasswordResetToken",
     "Product",
+    "ProductImage",
     "Seller",
+    "seller_categories",
     "User",
     "UserRole",
 ]

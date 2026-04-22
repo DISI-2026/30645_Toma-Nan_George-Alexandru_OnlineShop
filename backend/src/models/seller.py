@@ -7,8 +7,10 @@ from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
+from .seller_category import seller_categories
 
 if TYPE_CHECKING:
+    from .category import Category
     from .product import Product
     from .user import User
 
@@ -43,6 +45,10 @@ class Seller(Base):
 
     user: Mapped[User] = relationship(back_populates="seller")
     products: Mapped[list[Product]] = relationship(back_populates="seller")
+    categories: Mapped[list[Category]] = relationship(
+        secondary=seller_categories,
+        back_populates="sellers",
+    )
 
     @property
     def logo_url(self) -> str | None:

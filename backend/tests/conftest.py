@@ -36,6 +36,19 @@ async def app(tmp_path: Path):
                 END;
             """)
         )
+        await connection.execute(
+            text("""
+                CREATE TRIGGER IF NOT EXISTS check_max_product_images
+                BEFORE INSERT ON product_images
+                FOR EACH ROW
+                BEGIN
+                    SELECT CASE
+                        WHEN (SELECT COUNT(*) FROM product_images WHERE product_id = NEW.product_id) >= 10
+                        THEN RAISE(ABORT, 'Product cannot have more than 10 images')
+                    END;
+                END;
+            """)
+        )
 
     factory = async_sessionmaker(engine, expire_on_commit=False)
     application.state.db_sessionmaker = factory

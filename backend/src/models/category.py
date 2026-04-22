@@ -7,10 +7,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
 from .buyer_category_preference import buyer_category_preferences
+from .seller_category import seller_categories
 
 if TYPE_CHECKING:
     from .buyer import Buyer
     from .product import Product
+    from .seller import Seller
 
 
 class Category(Base):
@@ -35,5 +37,9 @@ class Category(Base):
     preferred_by_buyers: Mapped[list[Buyer]] = relationship(
         secondary=buyer_category_preferences,
         back_populates="preferred_categories",
+    )
+    sellers: Mapped[list[Seller]] = relationship(
+        secondary=seller_categories,
+        back_populates="categories",
     )
     products: Mapped[list[Product]] = relationship(back_populates="category")
