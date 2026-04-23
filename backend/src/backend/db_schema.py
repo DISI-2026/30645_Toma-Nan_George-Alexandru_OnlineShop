@@ -25,8 +25,10 @@ async def _create_triggers(connection: AsyncConnection) -> None:
     )
     
     await connection.execute(
+        text("DROP TRIGGER IF EXISTS products_updated_at ON products;")
+    )
+    await connection.execute(
         text("""
-            DROP TRIGGER IF EXISTS products_updated_at ON products;
             CREATE TRIGGER products_updated_at
             BEFORE UPDATE ON products
             FOR EACH ROW
@@ -56,8 +58,10 @@ async def _create_triggers(connection: AsyncConnection) -> None:
     )
     
     await connection.execute(
+        text("DROP TRIGGER IF EXISTS check_max_product_images ON product_images;")
+    )
+    await connection.execute(
         text("""
-            DROP TRIGGER IF EXISTS check_max_product_images ON product_images;
             CREATE TRIGGER check_max_product_images
             BEFORE INSERT ON product_images
             FOR EACH ROW
