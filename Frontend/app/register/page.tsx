@@ -26,6 +26,7 @@ export default function RegisterPage() {
     formState: { errors },
     watch,
     setValue,
+    getValues,
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -46,23 +47,30 @@ export default function RegisterPage() {
     setIsLoading(true)
 
     try {
+      const allValues = getValues()
       let payload
       if (data.role === "buyer") {
         payload = {
           email: data.email,
           password: data.password,
           role: "buyer" as const,
-          address: data.address || null,
+          address: allValues.address || null,
           preferred_category_ids: [],
         }
       } else {
+        const companyName = allValues.company_name?.trim()
+        if (!companyName) {
+          toast.error("Numele companiei este obligatoriu pentru seller")
+          setIsLoading(false)
+          return
+        }
         payload = {
           email: data.email,
           password: data.password,
           role: "seller" as const,
-          company_name: data.company_name || "",
-          description: data.description || null,
-          logo_url: data.logo_url || null,
+          company_name: companyName,
+          description: allValues.description?.trim() || null,
+          logo_url: allValues.logo_url?.trim() || null,
         }
       }
 
