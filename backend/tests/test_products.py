@@ -575,7 +575,7 @@ async def test_response_includes_updated_at_timestamp(
 
 
 @pytest.mark.asyncio
-async def test_get_product_by_id_returns_expected_shape(
+async def test_get_product_by_slug_returns_expected_shape(
     client: AsyncClient,
     session_factory: async_sessionmaker[AsyncSession],
 ):
@@ -641,8 +641,9 @@ async def test_get_product_by_id_returns_expected_shape(
         )
         await session.commit()
         product_id = target_product.id
+        product_slug = target_product.slug
 
-    response = await client.get(f"/api/v1/products/{product_id}")
+    response = await client.get(f"/api/v1/products/{product_slug}")
 
     assert response.status_code == 200
     data = response.json()
@@ -687,7 +688,7 @@ async def test_get_product_by_id_returns_expected_shape(
 
 
 @pytest.mark.asyncio
-async def test_get_product_by_id_returns_unavailable_product_with_zero_stock(
+async def test_get_product_by_slug_returns_unavailable_product_with_zero_stock(
     client: AsyncClient,
     session_factory: async_sessionmaker[AsyncSession],
 ):
@@ -717,8 +718,9 @@ async def test_get_product_by_id_returns_unavailable_product_with_zero_stock(
         session.add(product)
         await session.commit()
         product_id = product.id
+        product_slug = product.slug
 
-    response = await client.get(f"/api/v1/products/{product_id}")
+    response = await client.get(f"/api/v1/products/{product_slug}")
 
     assert response.status_code == 200
     data = response.json()
@@ -728,7 +730,7 @@ async def test_get_product_by_id_returns_unavailable_product_with_zero_stock(
 
 
 @pytest.mark.asyncio
-async def test_get_product_by_id_returns_404_when_missing(client: AsyncClient):
-    response = await client.get("/api/v1/products/999999")
+async def test_get_product_by_slug_returns_404_when_missing(client: AsyncClient):
+    response = await client.get("/api/v1/products/missing-product-slug")
 
     assert response.status_code == 404

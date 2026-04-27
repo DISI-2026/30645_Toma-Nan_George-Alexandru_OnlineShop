@@ -17,14 +17,14 @@ from models import Product
 from .update_product_usecase import ProductNotFoundError
 
 
-class GetProductByIdUseCase:
+class GetProductBySlugUseCase:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def execute(self, product_id: int) -> GetProductResponseDTO:
+    async def execute(self, product_slug: str) -> GetProductResponseDTO:
         statement = (
             select(Product)
-            .where(Product.id == product_id)
+            .where(Product.slug == product_slug)
             .options(
                 selectinload(Product.images),
                 selectinload(Product.category),

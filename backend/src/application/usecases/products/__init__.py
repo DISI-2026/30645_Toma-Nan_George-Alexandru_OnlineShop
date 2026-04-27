@@ -3,7 +3,7 @@ from .create_product_usecase import (
     DuplicateSlugError,
     SellerCategoryMismatchError,
 )
-from .get_product_by_id_usecase import GetProductByIdUseCase
+from .get_product_by_slug_usecase import GetProductBySlugUseCase
 from .process_images_usecase import (
     ImageTooLargeError,
     InvalidImageFormatError,
@@ -23,7 +23,7 @@ __all__ = [
     "CategoryNotFoundError",
     "CreateProductUseCase",
     "DuplicateSlugError",
-    "GetProductByIdUseCase",
+    "GetProductBySlugUseCase",
     "ImageTooLargeError",
     "InvalidFieldError",
     "InvalidImageFormatError",
