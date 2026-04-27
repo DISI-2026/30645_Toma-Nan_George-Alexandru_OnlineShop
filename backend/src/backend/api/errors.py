@@ -13,6 +13,7 @@ HTTP_ERROR_CODES: Final[dict[int, str]] = {
     status.HTTP_403_FORBIDDEN: "FORBIDDEN",
     status.HTTP_404_NOT_FOUND: "NOT_FOUND",
     status.HTTP_409_CONFLICT: "CONFLICT",
+    422: "UNPROCESSABLE_ENTITY",
 }
 
 

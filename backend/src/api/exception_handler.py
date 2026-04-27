@@ -17,6 +17,12 @@ from application.usecases.auth import (
     InvalidCredentialsError,
     PasswordDoesNotMatchMinimumRequirementsError,
 )
+from application.usecases.categories import (
+    CategoryAlreadyExistsError as ManagedCategoryAlreadyExistsError,
+    CategoryDeleteBlockedError,
+    CategoryNotFoundError as ManagedCategoryNotFoundError,
+    InvalidCategoryFieldError,
+)
 from api.dependencies.seller import SellerNotFoundError
 from application.usecases.products import (
     CategoryNotFoundError,
@@ -89,6 +95,21 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=str(exc),
                     ) from exc
+                except ManagedCategoryNotFoundError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=str(exc),
+                    ) from exc
+                except ManagedCategoryAlreadyExistsError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=str(exc),
+                    ) from exc
+                except CategoryDeleteBlockedError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=str(exc),
+                    ) from exc
                 except (OrderNotFoundError, BuyerProfileNotFoundError) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
@@ -129,6 +150,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     InvalidImageFormatError,
                     ImageTooLargeError,
                     TooManyImagesError,
+                    InvalidCategoryFieldError,
                 ) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
@@ -189,6 +211,21 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=str(exc),
                 ) from exc
+            except ManagedCategoryNotFoundError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=str(exc),
+                ) from exc
+            except ManagedCategoryAlreadyExistsError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=str(exc),
+                ) from exc
+            except CategoryDeleteBlockedError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=str(exc),
+                ) from exc
             except (ProductNotFoundError, SellerNotFoundError, CategoryNotFoundError) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -229,6 +266,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                 InvalidImageFormatError,
                 ImageTooLargeError,
                 TooManyImagesError,
+                InvalidCategoryFieldError,
             ) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
