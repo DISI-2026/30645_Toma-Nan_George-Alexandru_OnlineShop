@@ -20,6 +20,13 @@ http://localhost:8000/health
 docker compose up --build
 ```
 
+in case of errors reset the cache
+```bash
+docker compose down -v
+docker compose build --no-cache
+docker compose up --force-recreate
+```
+
 Services:
 
 - Backend: `http://localhost:8000/health`
