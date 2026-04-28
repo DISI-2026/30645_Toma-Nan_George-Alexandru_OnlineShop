@@ -42,8 +42,13 @@ from application.usecases.orders import (
     OrderNotFoundError,
 )
 from application.usecases.sellers import (
+    AdminSellerCategoryNotFoundError,
+    AdminSellerNotFoundError,
     SellerProfileAlreadyExistsError,
     SellerProfileNotFoundError,
+    SellerCategoryAssignmentAlreadyExistsError,
+    SellerCategoryAssignmentDeleteBlockedError,
+    SellerCategoryAssignmentNotFoundError,
 )
 
 logger = logging.getLogger(__name__)
@@ -90,7 +95,12 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_409_CONFLICT,
                         detail="Seller profile already exists.",
                     ) from exc
-                except SellerProfileNotFoundError as exc:
+                except (
+                    SellerProfileNotFoundError,
+                    AdminSellerNotFoundError,
+                    AdminSellerCategoryNotFoundError,
+                    SellerCategoryAssignmentNotFoundError,
+                ) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=str(exc),
@@ -105,7 +115,17 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_409_CONFLICT,
                         detail=str(exc),
                     ) from exc
+                except SellerCategoryAssignmentAlreadyExistsError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=str(exc),
+                    ) from exc
                 except CategoryDeleteBlockedError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=str(exc),
+                    ) from exc
+                except SellerCategoryAssignmentDeleteBlockedError as exc:
                     raise HTTPException(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                         detail=str(exc),
@@ -206,7 +226,12 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Seller profile already exists.",
                 ) from exc
-            except SellerProfileNotFoundError as exc:
+            except (
+                SellerProfileNotFoundError,
+                AdminSellerNotFoundError,
+                AdminSellerCategoryNotFoundError,
+                SellerCategoryAssignmentNotFoundError,
+            ) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=str(exc),
@@ -221,7 +246,17 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     status_code=status.HTTP_409_CONFLICT,
                     detail=str(exc),
                 ) from exc
+            except SellerCategoryAssignmentAlreadyExistsError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=str(exc),
+                ) from exc
             except CategoryDeleteBlockedError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=str(exc),
+                ) from exc
+            except SellerCategoryAssignmentDeleteBlockedError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=str(exc),
