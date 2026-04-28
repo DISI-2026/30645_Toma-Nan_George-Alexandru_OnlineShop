@@ -5,6 +5,12 @@ from .create_product_dto import (
     CreateProductResponseDTO,
     ProductImageDTO,
 )
+from .get_product_dto import (
+    GetProductResponseDTO,
+    ProductCategoryPublicDTO,
+    ProductImagePublicDTO,
+    ProductSellerPublicDTO,
+)
 from .update_product_images_dto import (
     UpdateProductImageDTO,
     UpdateProductImagesRequestDTO,
@@ -19,7 +25,11 @@ __all__ = [
     "CreateProductImagesMetadataRequestDTO",
     "CreateProductRequestDTO",
     "CreateProductResponseDTO",
+    "GetProductResponseDTO",
+    "ProductCategoryPublicDTO",
     "ProductImageDTO",
+    "ProductImagePublicDTO",
+    "ProductSellerPublicDTO",
     "UpdateProductImageDTO",
     "UpdateProductImagesRequestDTO",
     "UpdateProductRequestDTO",

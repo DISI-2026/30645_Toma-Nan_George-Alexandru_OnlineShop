@@ -8,7 +8,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from application.security.tokens import create_access_token
-from models import Category, Product, Seller, User, UserRole
+from models import Category, Product, ProductImage, Seller, User, UserRole
 
 
 def auth_cookies(user_id: int, role: str) -> dict[str, str]:
@@ -572,3 +572,165 @@ async def test_response_includes_updated_at_timestamp(
     data = response.json()
     assert "updated_at" in data
     assert data["updated_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_get_product_by_slug_returns_expected_shape(
+    client: AsyncClient,
+    session_factory: async_sessionmaker[AsyncSession],
+):
+    async with session_factory() as session:
+        user = User(email="seller-get-product@test.com", password_hash="hash", role=UserRole.SELLER)
+        session.add(user)
+        await session.flush()
+
+        seller = Seller(
+            user_id=user.id,
+            company_name="Public Seller",
+            logo_path="sellers/public-seller/logo.png",
+        )
+        session.add(seller)
+        await session.flush()
+
+        category = Category(name="Public Category")
+        session.add(category)
+        await session.flush()
+
+        target_product = Product(
+            seller_id=seller.id,
+            category_id=category.id,
+            title="Public Product",
+            slug="public-product",
+            description="Public product description",
+            price=Decimal("99.90"),
+            stock=5,
+            is_available=True,
+            avg_rating=Decimal("4.50"),
+            review_count=12,
+        )
+        extra_product = Product(
+            seller_id=seller.id,
+            category_id=category.id,
+            title="Extra Product",
+            slug="extra-product",
+            description="Extra product description",
+            price=Decimal("49.90"),
+            stock=2,
+            is_available=True,
+            avg_rating=Decimal("3.50"),
+            review_count=2,
+        )
+        session.add_all([target_product, extra_product])
+        await session.flush()
+
+        session.add_all(
+            [
+                ProductImage(
+                    product_id=target_product.id,
+                    path=f"products/{target_product.id}/b.jpg",
+                    is_thumbnail=False,
+                    display_order=1,
+                ),
+                ProductImage(
+                    product_id=target_product.id,
+                    path=f"products/{target_product.id}/a.jpg",
+                    is_thumbnail=True,
+                    display_order=0,
+                ),
+            ]
+        )
+        await session.commit()
+        product_id = target_product.id
+        product_slug = target_product.slug
+
+    response = await client.get(f"/api/v1/products/{product_slug}")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert {
+        "id",
+        "title",
+        "slug",
+        "description",
+        "price",
+        "stock",
+        "is_available",
+        "images",
+        "avg_rating",
+        "review_count",
+        "category",
+        "seller",
+        "created_at",
+        "updated_at",
+    } <= set(data.keys())
+    assert data["id"] == product_id
+    assert data["title"] == "Public Product"
+    assert data["slug"] == "public-product"
+    assert data["price"] == "99.90"
+    assert data["stock"] == 5
+    assert data["is_available"] is True
+
+    assert len(data["images"]) == 2
+    assert data["images"][0]["order"] == 0
+    assert data["images"][0]["is_thumbnail"] is True
+    assert data["images"][0]["url"] == f"/media/products/{product_id}/a.jpg"
+    assert data["images"][1]["order"] == 1
+    assert data["images"][1]["is_thumbnail"] is False
+    assert data["images"][1]["url"] == f"/media/products/{product_id}/b.jpg"
+
+    assert data["category"]["id"] > 0
+    assert data["category"]["name"] == "Public Category"
+    assert data["seller"]["id"] > 0
+    assert data["seller"]["company_name"] == "Public Seller"
+    assert data["seller"]["logo_url"] == "/media/sellers/public-seller/logo.png"
+    assert Decimal(str(data["seller"]["avg_rating"])) == Decimal("4.0")
+
+
+@pytest.mark.asyncio
+async def test_get_product_by_slug_returns_unavailable_product_with_zero_stock(
+    client: AsyncClient,
+    session_factory: async_sessionmaker[AsyncSession],
+):
+    async with session_factory() as session:
+        user = User(email="seller-hidden-product@test.com", password_hash="hash", role=UserRole.SELLER)
+        session.add(user)
+        await session.flush()
+
+        seller = Seller(user_id=user.id, company_name="Hidden Seller")
+        session.add(seller)
+        await session.flush()
+
+        category = Category(name="Hidden Category")
+        session.add(category)
+        await session.flush()
+
+        product = Product(
+            seller_id=seller.id,
+            category_id=category.id,
+            title="Hidden Product",
+            slug="hidden-product",
+            description="Hidden product description",
+            price=Decimal("10.00"),
+            stock=0,
+            is_available=False,
+        )
+        session.add(product)
+        await session.commit()
+        product_id = product.id
+        product_slug = product.slug
+
+    response = await client.get(f"/api/v1/products/{product_slug}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == product_id
+    assert data["stock"] == 0
+    assert data["is_available"] is False
+
+
+@pytest.mark.asyncio
+async def test_get_product_by_slug_returns_404_when_missing(client: AsyncClient):
+    response = await client.get("/api/v1/products/missing-product-slug")
+
+    assert response.status_code == 404
