@@ -734,3 +734,261 @@ async def test_get_product_by_slug_returns_404_when_missing(client: AsyncClient)
     response = await client.get("/api/v1/products/missing-product-slug")
 
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_list_products_returns_filtered_results_with_pagination_and_shape(
+    client: AsyncClient,
+    session_factory: async_sessionmaker[AsyncSession],
+):
+    async with session_factory() as session:
+        seller_user = User(email="list-seller@test.com", password_hash="hash", role=UserRole.SELLER)
+        session.add(seller_user)
+        await session.flush()
+        seller = Seller(
+            user_id=seller_user.id,
+            company_name="List Seller",
+            logo_path="sellers/list-seller/logo.png",
+        )
+        session.add(seller)
+        await session.flush()
+
+        category = Category(name="List Category")
+        session.add(category)
+        await session.flush()
+
+        product_1 = Product(
+            seller_id=seller.id,
+            category_id=category.id,
+            title="Phone Alpha",
+            slug="phone-alpha",
+            description="alpha description",
+            price=Decimal("100.00"),
+            stock=8,
+            is_available=True,
+            avg_rating=Decimal("4.60"),
+            review_count=11,
+        )
+        product_2 = Product(
+            seller_id=seller.id,
+            category_id=category.id,
+            title="Phone Beta",
+            slug="phone-beta",
+            description="beta description",
+            price=Decimal("80.00"),
+            stock=4,
+            is_available=True,
+            avg_rating=Decimal("4.20"),
+            review_count=5,
+        )
+        product_3 = Product(
+            seller_id=seller.id,
+            category_id=category.id,
+            title="Phone Hidden",
+            slug="phone-hidden",
+            description="hidden description",
+            price=Decimal("50.00"),
+            stock=0,
+            is_available=False,
+            avg_rating=Decimal("5.00"),
+            review_count=1,
+        )
+        session.add_all([product_1, product_2, product_3])
+        await session.flush()
+        session.add(
+            ProductImage(
+                product_id=product_1.id,
+                path=f"products/{product_1.id}/thumb.jpg",
+                is_thumbnail=True,
+                display_order=0,
+            )
+        )
+        await session.commit()
+
+        category_id = category.id
+        seller_id = seller.id
+
+    response = await client.get(
+        "/api/v1/products",
+        params={
+            "q": "phone",
+            "category_id": category_id,
+            "seller_id": seller_id,
+            "min_price": "90.00",
+            "min_rating": "4.5",
+            "sort": "price_desc",
+            "page": 1,
+            "page_size": 20,
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert list(data.keys()) == ["data", "pagination"]
+    assert data["pagination"] == {
+        "page": 1,
+        "page_size": 20,
+        "total_items": 1,
+        "total_pages": 1,
+    }
+    assert len(data["data"]) == 1
+
+    item = data["data"][0]
+    assert {
+        "id",
+        "title",
+        "slug",
+        "price",
+        "stock",
+        "is_available",
+        "thumbnail_url",
+        "avg_rating",
+        "review_count",
+        "category",
+        "seller",
+    } == set(item.keys())
+    assert item["title"] == "Phone Alpha"
+    assert item["is_available"] is True
+    assert item["thumbnail_url"].endswith("/thumb.jpg")
+    assert item["category"]["id"] == category_id
+    assert item["seller"]["id"] == seller_id
+    assert item["seller"]["logo_url"] == "/media/sellers/list-seller/logo.png"
+
+
+@pytest.mark.asyncio
+async def test_list_products_supports_sort_and_pagination(
+    client: AsyncClient,
+    session_factory: async_sessionmaker[AsyncSession],
+):
+    async with session_factory() as session:
+        seller_user = User(email="list-seller-sort@test.com", password_hash="hash", role=UserRole.SELLER)
+        session.add(seller_user)
+        await session.flush()
+        seller = Seller(user_id=seller_user.id, company_name="Sort Seller")
+        session.add(seller)
+        await session.flush()
+
+        category = Category(name="Sort Category")
+        session.add(category)
+        await session.flush()
+
+        session.add_all(
+            [
+                Product(
+                    seller_id=seller.id,
+                    category_id=category.id,
+                    title="Sort 1",
+                    slug="sort-1",
+                    description="s1",
+                    price=Decimal("30.00"),
+                    stock=1,
+                    is_available=True,
+                ),
+                Product(
+                    seller_id=seller.id,
+                    category_id=category.id,
+                    title="Sort 2",
+                    slug="sort-2",
+                    description="s2",
+                    price=Decimal("10.00"),
+                    stock=1,
+                    is_available=True,
+                ),
+                Product(
+                    seller_id=seller.id,
+                    category_id=category.id,
+                    title="Sort 3",
+                    slug="sort-3",
+                    description="s3",
+                    price=Decimal("20.00"),
+                    stock=1,
+                    is_available=True,
+                ),
+            ]
+        )
+        await session.commit()
+
+    response = await client.get(
+        "/api/v1/products",
+        params={"sort": "price_asc", "page": 2, "page_size": 1},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["pagination"] == {
+        "page": 2,
+        "page_size": 1,
+        "total_items": 3,
+        "total_pages": 3,
+    }
+    assert len(data["data"]) == 1
+    assert data["data"][0]["price"] == "20.00"
+
+
+@pytest.mark.asyncio
+async def test_list_products_forces_is_available_for_unauthenticated_and_buyer(
+    client: AsyncClient,
+    session_factory: async_sessionmaker[AsyncSession],
+):
+    async with session_factory() as session:
+        seller_user = User(email="list-visible-seller@test.com", password_hash="hash", role=UserRole.SELLER)
+        buyer_user = User(email="list-visible-buyer@test.com", password_hash="hash", role=UserRole.BUYER)
+        session.add_all([seller_user, buyer_user])
+        await session.flush()
+        seller = Seller(user_id=seller_user.id, company_name="Visible Seller")
+        session.add(seller)
+        await session.flush()
+
+        category = Category(name="Visible Category")
+        session.add(category)
+        await session.flush()
+
+        session.add_all(
+            [
+                Product(
+                    seller_id=seller.id,
+                    category_id=category.id,
+                    title="Visible Product",
+                    slug="visible-product",
+                    description="visible",
+                    price=Decimal("10.00"),
+                    stock=10,
+                    is_available=True,
+                ),
+                Product(
+                    seller_id=seller.id,
+                    category_id=category.id,
+                    title="Hidden Product 2",
+                    slug="hidden-product-2",
+                    description="hidden",
+                    price=Decimal("20.00"),
+                    stock=0,
+                    is_available=False,
+                ),
+            ]
+        )
+        await session.commit()
+        seller_cookies = auth_cookies(seller_user.id, "seller")
+        buyer_cookies = auth_cookies(buyer_user.id, "buyer")
+
+    unauth_response = await client.get("/api/v1/products", params={"is_available": False})
+    assert unauth_response.status_code == 200
+    assert all(item["is_available"] is True for item in unauth_response.json()["data"])
+
+    buyer_response = await client.get(
+        "/api/v1/products",
+        params={"is_available": False},
+        cookies=buyer_cookies,
+    )
+    assert buyer_response.status_code == 200
+    assert all(item["is_available"] is True for item in buyer_response.json()["data"])
+
+    seller_response = await client.get(
+        "/api/v1/products",
+        params={"is_available": False},
+        cookies=seller_cookies,
+    )
+    assert seller_response.status_code == 200
+    seller_data = seller_response.json()["data"]
+    assert len(seller_data) == 1
+    assert seller_data[0]["is_available"] is False
