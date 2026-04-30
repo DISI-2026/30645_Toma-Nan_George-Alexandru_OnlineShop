@@ -117,7 +117,7 @@ class ManageCategoriesUseCase:
             )
         )
         seller_links = await self._session.scalar(
-            select(func.count(seller_categories.c.id)).where(
+            select(func.count(seller_categories.c.category_id)).where(
                 seller_categories.c.category_id == category.id
             )
         )
