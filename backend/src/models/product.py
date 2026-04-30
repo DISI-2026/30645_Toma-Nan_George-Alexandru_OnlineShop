@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 
 if TYPE_CHECKING:
+    from .cart_item import CartItem
     from .category import Category
     from .order_item import OrderItem
     from .product_image import ProductImage
@@ -58,6 +59,7 @@ class Product(Base):
         cascade="all, delete-orphan",
         order_by="ProductImage.display_order",
     )
+    cart_items: Mapped[list[CartItem]] = relationship(back_populates="product")
     order_items: Mapped[list[OrderItem]] = relationship(back_populates="product")
 
 

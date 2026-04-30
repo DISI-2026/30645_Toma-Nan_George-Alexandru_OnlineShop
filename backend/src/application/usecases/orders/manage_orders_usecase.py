@@ -1,22 +1,36 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from application.dtos.orders import (
+    CheckoutOrderDTO,
     OrderBuyerSummaryDTO,
     OrderDetailsResponseDTO,
     OrderItemDTO,
+    OrderTrackingStatusResponseDTO,
     OrderStatusHistoryDTO,
+    PlaceOrderRequestDTO,
+    PlaceOrderResponseDTO,
     SellerOrderListItemDTO,
     SellerOrderListResponseDTO,
     UpdateOrderStatusRequestDTO,
     UpdateOrderStatusResponseDTO,
 )
-from models import Buyer, Order, OrderStatus, OrderStatusHistory, Seller
+from models import (
+    Buyer,
+    CartItem,
+    Order,
+    OrderItem,
+    OrderStatus,
+    OrderStatusHistory,
+    Seller,
+)
 
 
 class OrderNotFoundError(Exception):
@@ -32,6 +46,14 @@ class InvalidOrderStatusTransitionError(Exception):
 
 
 class BuyerProfileNotFoundError(Exception):
+    pass
+
+
+class CartEmptyError(Exception):
+    pass
+
+
+class InsufficientStockError(Exception):
     pass
 
 
@@ -234,3 +256,145 @@ class UpdateOrderStatusUseCase(GetOrderDetailsUseCase):
             OrderStatus.SHIPPED: [OrderStatus.DELIVERED],
         }
         return transitions.get(current_status, [])
+
+
+class PlaceOrdersUseCase:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def execute(self, user_id: int, request: PlaceOrderRequestDTO) -> PlaceOrderResponseDTO:
+        buyer_id = await self._get_buyer_id(user_id)
+        cart_items = await self._get_cart_items(buyer_id)
+        if not cart_items:
+            raise CartEmptyError("Cart is empty.")
+
+        grouped_items: dict[int, list[CartItem]] = {}
+        for cart_item in cart_items:
+            product = cart_item.product
+            if cart_item.quantity > product.stock:
+                raise InsufficientStockError(
+                    f"Insufficient stock for product '{product.title}'."
+                )
+            grouped_items.setdefault(product.seller_id, []).append(cart_item)
+
+        created_order_ids: list[int] = []
+        for seller_id in sorted(grouped_items):
+            seller_items = grouped_items[seller_id]
+            order = Order(
+                order_number="PENDING",
+                buyer_id=buyer_id,
+                seller_id=seller_id,
+                status=OrderStatus.PLACED,
+                delivery_address={"address": request.delivery_address.strip()},
+                notes=self._clean_optional(request.notes),
+                total=self._compute_total(seller_items),
+            )
+            self._session.add(order)
+            await self._session.flush()
+
+            order.order_number = self._generate_order_number(order.id)
+            self._session.add(
+                OrderStatusHistory(
+                    order_id=order.id,
+                    status=OrderStatus.PLACED,
+                    changed_by_role="buyer",
+                )
+            )
+
+            for cart_item in seller_items:
+                product = cart_item.product
+                subtotal = product.price * cart_item.quantity
+                self._session.add(
+                    OrderItem(
+                        order_id=order.id,
+                        product_id=product.id,
+                        product_title=product.title,
+                        quantity=cart_item.quantity,
+                        unit_price=product.price,
+                        subtotal=subtotal,
+                    )
+                )
+                product.stock -= cart_item.quantity
+
+            created_order_ids.append(order.id)
+
+        await self._session.execute(delete(CartItem).where(CartItem.cart_session_id == buyer_id))
+        await self._session.commit()
+
+        statement = (
+            select(Order)
+            .where(Order.id.in_(created_order_ids))
+            .options(selectinload(Order.items))
+            .order_by(Order.id.asc())
+        )
+        persisted_orders = list((await self._session.execute(statement)).scalars())
+
+        return PlaceOrderResponseDTO(
+            orders=[self._to_checkout_order(order) for order in persisted_orders],
+            order_count=len(persisted_orders),
+        )
+
+    async def _get_buyer_id(self, user_id: int) -> int:
+        statement = select(Buyer.id).where(Buyer.user_id == user_id)
+        buyer_id = (await self._session.execute(statement)).scalar_one_or_none()
+        if buyer_id is None:
+            raise BuyerProfileNotFoundError("Buyer profile not found.")
+        return buyer_id
+
+    async def _get_cart_items(self, buyer_id: int) -> list[CartItem]:
+        statement = (
+            select(CartItem)
+            .where(CartItem.cart_session_id == buyer_id)
+            .options(selectinload(CartItem.product))
+            .order_by(CartItem.id.asc())
+        )
+        return list((await self._session.execute(statement)).scalars())
+
+    def _compute_total(self, cart_items: list[CartItem]) -> Decimal:
+        total = Decimal("0.00")
+        for cart_item in cart_items:
+            total += cart_item.product.price * cart_item.quantity
+        return total
+
+    def _generate_order_number(self, order_id: int) -> str:
+        year = datetime.now(timezone.utc).year
+        return f"ORD-{year}-{order_id:06d}"
+
+    def _clean_optional(self, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        return cleaned or None
+
+    def _to_checkout_order(self, order: Order) -> CheckoutOrderDTO:
+        return CheckoutOrderDTO(
+            id=order.id,
+            order_number=order.order_number,
+            seller_id=order.seller_id,
+            items=[OrderItemDTO.model_validate(item) for item in order.items],
+            total=order.total,
+            status=order.status,
+            placed_at=order.placed_at,
+        )
+
+
+class GetOrderTrackingStatusUseCase(GetOrderDetailsUseCase):
+    async def execute(
+        self,
+        user_id: int,
+        role: str,
+        order_id: int,
+    ) -> OrderTrackingStatusResponseDTO:
+        order = await self._get_order(order_id)
+        actor = await self._resolve_actor(user_id, role)
+        self._assert_can_access(order, actor)
+
+        return OrderTrackingStatusResponseDTO(
+            id=order.id,
+            status=order.status,
+            status_history=[
+                OrderStatusHistoryDTO.model_validate(history)
+                for history in order.status_history
+            ],
+            last_updated=order.updated_at,
+        )

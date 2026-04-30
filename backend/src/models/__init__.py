@@ -1,6 +1,8 @@
 from .base import Base
 from .buyer import Buyer
 from .buyer_category_preference import buyer_category_preferences
+from .cart_item import CartItem
+from .cart_session import CartSession
 from .category import Category
 from .order import Order, OrderStatus
 from .order_item import OrderItem
@@ -16,6 +18,8 @@ __all__ = [
     "Base",
     "Buyer",
     "buyer_category_preferences",
+    "CartItem",
+    "CartSession",
     "Category",
     "Order",
     "OrderItem",
