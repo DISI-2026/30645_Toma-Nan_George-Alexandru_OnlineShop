@@ -60,3 +60,12 @@ def require_roles(*allowed_roles: str):
         return auth_context
 
     return _require_roles
+
+
+async def get_optional_auth_context(request: Request) -> AuthContext | None:
+    try:
+        return await get_auth_context(request)
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+            return None
+        raise
