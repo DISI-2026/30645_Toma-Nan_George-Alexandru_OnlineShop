@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from slugify import slugify
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.dtos.products import CreateProductRequestDTO
