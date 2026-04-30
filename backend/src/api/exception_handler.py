@@ -23,6 +23,12 @@ from application.usecases.categories import (
     CategoryNotFoundError as ManagedCategoryNotFoundError,
     InvalidCategoryFieldError,
 )
+from application.usecases.cart import (
+    CartBuyerProfileNotFoundError,
+    CartItemNotFoundError,
+    CartProductNotFoundError,
+    CartQuantityExceedsStockError,
+)
 from api.dependencies.seller import SellerNotFoundError
 from application.usecases.products import (
     CategoryNotFoundError,
@@ -37,6 +43,8 @@ from application.usecases.products import (
 )
 from application.usecases.orders import (
     BuyerProfileNotFoundError,
+    CartEmptyError,
+    InsufficientStockError,
     InvalidOrderStatusTransitionError,
     OrderAccessDeniedError,
     OrderNotFoundError,
@@ -135,6 +143,15 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=str(exc),
                     ) from exc
+                except (
+                    CartProductNotFoundError,
+                    CartItemNotFoundError,
+                    CartBuyerProfileNotFoundError,
+                ) as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=str(exc),
+                    ) from exc
                 except (ProductNotFoundError, SellerNotFoundError, CategoryNotFoundError) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
@@ -161,6 +178,15 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         detail=str(exc),
                     ) from exc
                 except InvalidOrderStatusTransitionError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=str(exc),
+                    ) from exc
+                except (
+                    CartQuantityExceedsStockError,
+                    CartEmptyError,
+                    InsufficientStockError,
+                ) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                         detail=str(exc),
@@ -271,6 +297,15 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=str(exc),
                 ) from exc
+            except (
+                CartProductNotFoundError,
+                CartItemNotFoundError,
+                CartBuyerProfileNotFoundError,
+            ) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=str(exc),
+                ) from exc
             except OrderAccessDeniedError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -292,6 +327,15 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     detail=str(exc),
                 ) from exc
             except InvalidOrderStatusTransitionError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=str(exc),
+                ) from exc
+            except (
+                CartQuantityExceedsStockError,
+                CartEmptyError,
+                InsufficientStockError,
+            ) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=str(exc),

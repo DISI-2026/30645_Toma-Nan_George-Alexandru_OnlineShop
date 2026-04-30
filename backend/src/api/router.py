@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from api.endpoints.admin_sellers import router as admin_sellers_router
 from api.endpoints.auth import router as auth_router
 from api.endpoints.buyers import router as buyers_router
+from api.endpoints.cart import router as cart_router
 from api.endpoints.categories import router as categories_router
 from api.endpoints.me import router as me_router
 from api.endpoints.orders import router as orders_router
@@ -14,6 +15,7 @@ api_router = APIRouter()
 api_router.include_router(admin_sellers_router)
 api_router.include_router(auth_router)
 api_router.include_router(buyers_router)
+api_router.include_router(cart_router)
 api_router.include_router(categories_router)
 api_router.include_router(me_router)
 api_router.include_router(orders_router)
