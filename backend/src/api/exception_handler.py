@@ -49,6 +49,7 @@ from application.usecases.orders import (
     OrderAccessDeniedError,
     OrderNotFoundError,
 )
+from application.usecases.sales_stats import InvalidSalesStatsQueryError
 from application.usecases.sellers import (
     AdminSellerCategoryNotFoundError,
     AdminSellerNotFoundError,
@@ -197,6 +198,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     ImageTooLargeError,
                     TooManyImagesError,
                     InvalidCategoryFieldError,
+                    InvalidSalesStatsQueryError,
                 ) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
@@ -346,6 +348,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                 ImageTooLargeError,
                 TooManyImagesError,
                 InvalidCategoryFieldError,
+                InvalidSalesStatsQueryError,
             ) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
