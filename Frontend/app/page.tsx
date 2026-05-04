@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Search, ShoppingCart, User, Menu, Star, Shield, LogOut } from "lucide-react"
+import { Search, ShoppingCart, User, Menu, Star, Shield, LogOut, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -12,199 +12,145 @@ import { Slider } from "@/components/ui/slider"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getUser, clearLocalAuth } from "@/lib/auth-utils"
 import { logoutUser } from "@/lib/api/auth"
+import { useProducts } from "@/hooks/use-products"
+import type { ProductListItem, ProductListQuery } from "@/lib/types/product"
 
-// Mock data
-const categories = ["Electronice", "Imbracaminte", "Casa & Gradina", "Sport", "Carti", "Jucarii", "Frumusete", "Auto"]
-
-const products = [
-  {
-    id: 1,
-    name: "Casti Wireless Bluetooth",
-    price: 399.99,
-    originalPrice: 499.99,
-    image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop",
-    rating: 4.5,
-    reviews: 1247,
-    seller: "TechGear Pro",
-    trustScore: 92,
-    category: "Electronice",
-  },
-  {
-    id: 2,
-    name: "Tricou Premium din Bumbac",
-    price: 124.99,
-    image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop",
-    rating: 4.3,
-    reviews: 856,
-    seller: "Fashion Forward",
-    trustScore: 85,
-    category: "Imbracaminte",
-  },
-  {
-    id: 3,
-    name: "Camera Smart de Securitate",
-    price: 749.99,
-    originalPrice: 999.99,
-    image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop",
-    rating: 4.7,
-    reviews: 2103,
-    seller: "SecureHome Tech",
-    trustScore: 96,
-    category: "Electronice",
-  },
-  {
-    id: 4,
-    name: "Cafea Boabe Organica 1kg",
-    price: 94.99,
-    image: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&h=400&fit=crop",
-    rating: 4.6,
-    reviews: 743,
-    seller: "Mountain Roasters",
-    trustScore: 89,
-    category: "Alimente",
-  },
-  {
-    id: 5,
-    name: "Saltea Yoga Premium",
-    price: 199.99,
-    image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&h=400&fit=crop",
-    rating: 4.4,
-    reviews: 512,
-    seller: "FitLife Essentials",
-    trustScore: 83,
-    category: "Sport",
-  },
-  {
-    id: 6,
-    name: "Lampa LED Birou cu USB",
-    price: 174.99,
-    originalPrice: 249.99,
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop",
-    rating: 4.2,
-    reviews: 328,
-    seller: "Office Solutions",
-    trustScore: 78,
-    category: "Casa & Gradina",
-  },
+const SORT_OPTIONS = [
+  { value: "newest", label: "Cele mai noi" },
+  { value: "price_asc", label: "Pret: Mic la Mare" },
+  { value: "price_desc", label: "Pret: Mare la Mic" },
+  { value: "rating_desc", label: "Rating Clienti" },
 ]
 
-function TrustBadge({ score }: { score: number }) {
-  const getScoreData = (score: number) => {
-    if (score >= 90)
-      return {
-        color: "bg-emerald-50 border-emerald-200 text-emerald-800",
-        icon: "🛡️",
-        label: "Excellent",
-        barColor: "bg-emerald-500",
-      }
-    if (score >= 80)
-      return {
-        color: "bg-blue-50 border-blue-200 text-blue-800",
-        icon: "✅",
-        label: "Very Good",
-        barColor: "bg-blue-500",
-      }
-    if (score >= 70)
-      return {
-        color: "bg-amber-50 border-amber-200 text-amber-800",
-        icon: "⚠️",
-        label: "Good",
-        barColor: "bg-amber-500",
-      }
-    return {
-      color: "bg-red-50 border-red-200 text-red-800",
-      icon: "❌",
-      label: "Poor",
-      barColor: "bg-red-500",
-    }
-  }
-
-  const scoreData = getScoreData(score)
-
+function StarRating({ rating }: { rating: number | null }) {
+  const r = Number(rating ?? 0)
   return (
-    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border ${scoreData.color}`}>
-      <span className="text-sm">{scoreData.icon}</span>
-      <div className="flex flex-col">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium">Trust Score</span>
-          <span className="text-sm font-bold">{score}%</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-12 h-1 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className={`h-full ${scoreData.barColor} transition-all duration-300`}
-              style={{ width: `${score}%` }}
-            />
-          </div>
-          <span className="text-xs opacity-75">{scoreData.label}</span>
-        </div>
+    <div className="flex items-center gap-1">
+      <div className="flex">
+        {[...Array(5)].map((_, i) => {
+          const fill = Math.min(Math.max(r - i, 0), 1) // 0 to 1
+          return (
+            <span key={i} className="relative inline-block w-4 h-4">
+              {/* Empty star */}
+              <Star className="w-4 h-4 text-gray-300 absolute inset-0" />
+              {/* Filled star*/}
+              {fill > 0 && (
+                <span className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+                  <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                </span>
+              )}
+            </span>
+          )
+        })}
       </div>
+      <span className="text-xs text-gray-600">{r.toFixed(1)}</span>
     </div>
   )
 }
 
-function ProductCard({ product }: { product: (typeof products)[0] }) {
+function TrustBadge({ score }: { score: number }) {
+  const { color, label } = score >= 90
+    ? { color: "text-emerald-600 bg-emerald-50 border-emerald-200", label: "Excelent" }
+    : score >= 80
+    ? { color: "text-blue-600 bg-blue-50 border-blue-200", label: "Foarte bun" }
+    : score >= 70
+    ? { color: "text-amber-600 bg-amber-50 border-amber-200", label: "Bun" }
+    : { color: "text-red-600 bg-red-50 border-red-200", label: "Slab" }
   return (
-    <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-      <CardContent className="p-4">
-        <div className="relative mb-3">
-          <img
-            src={product.image || "/placeholder.svg"}
-            alt={product.name}
-            className="w-full h-48 object-cover rounded-md"
-          />
-          {product.originalPrice && (
-            <Badge className="absolute top-2 left-2 bg-red-500 text-white">
-              Economisesti {(product.originalPrice - product.price).toFixed(2)} RON
-            </Badge>
-          )}
-        </div>
+    <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-xs font-medium ${color}`}>
+      <Shield className="w-3 h-3" />
+      <span>Trust {score}%</span>
+      <span className="opacity-70">· {label}</span>
+    </div>
+  )
+}
 
-        <h3 className="font-medium text-sm mb-2 line-clamp-2">{product.name}</h3>
+function ProductCard({ product }: { product: ProductListItem }) {
+  const isOutOfStock = product.stock === 0 || !product.is_available
 
-        <div className="flex items-center mb-2">
-          <div className="flex items-center">
-            {[...Array(5)].map((_, i) => (
-              <Star
-                key={i}
-                className={`w-4 h-4 ${i < Math.floor(product.rating) ? "text-yellow-400 fill-current" : "text-gray-300"}`}
-              />
-            ))}
+  return (
+    <Link href={`/product/${product.slug}`}>
+      <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+        <CardContent className="p-4 flex flex-col h-full">
+          <div className="relative mb-3">
+            <img
+              src={product.thumbnail_url || "/placeholder.svg"}
+              alt={product.title}
+              className="w-full h-48 object-cover rounded-md"
+            />
+            {isOutOfStock && (
+              <Badge className="absolute top-2 left-2 bg-gray-500 text-white">Stoc epuizat</Badge>
+            )}
           </div>
-          <span className="text-sm text-gray-600 ml-1">({product.reviews})</span>
-        </div>
 
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-lg font-bold text-gray-900">{product.price} RON</span>
-          {product.originalPrice && (
-            <span className="text-sm text-gray-500 line-through">{product.originalPrice} RON</span>
-          )}
-        </div>
+          <h3 className="font-medium text-sm mb-2 line-clamp-2 flex-1">{product.title}</h3>
 
-        <div className="text-xs text-gray-600 mb-3">
-          de la <span className="text-orange-600 hover:underline">{product.seller}</span>
-        </div>
+          <div className="mb-2">
+            <StarRating rating={product.avg_rating} />
+            <span className="text-xs text-gray-500">{product.review_count} recenzii</span>
+          </div>
 
-        <div className="mb-3">
-          <TrustBadge score={product.trustScore} />
-        </div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-lg font-bold text-gray-900">{Number(product.price).toFixed(2)} RON</span>
+          </div>
 
-        <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white">Adauga in Cos</Button>
-      </CardContent>
-    </Card>
+          <div className="text-xs text-gray-600 mb-2">
+            de la <span className="text-orange-600">{product.seller.company_name}</span>
+          </div>
+
+          <div className="mb-3">
+            <TrustBadge score={Math.min(100, Math.round(Number(product.avg_rating) * 20))} />
+          </div>
+
+          <Button
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white mt-auto"
+            disabled={isOutOfStock}
+            onClick={(e) => e.preventDefault()}
+          >
+            {isOutOfStock ? "Stoc epuizat" : "Adaugă în Coș"}
+          </Button>
+        </CardContent>
+      </Card>
+    </Link>
   )
 }
 
 export default function BuyerHomepage() {
   const router = useRouter()
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
-  const [priceRange, setPriceRange] = useState([0, 1000])
-  const [trustScore, setTrustScore] = useState([70])
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [user, setUser] = useState<{ id: number; email: string; role: string } | null>(null)
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
+
+  // Filter state
+  const [searchInput, setSearchInput] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([])
+  const [priceRange, setPriceRange] = useState([0, 10000])
+  const [appliedPriceRange, setAppliedPriceRange] = useState([0, 10000])
+  const [minRating, setMinRating] = useState(0)
+  const [sort, setSort] = useState<ProductListQuery["sort"]>("newest")
+  const [page, setPage] = useState(1)
+
+  const query: ProductListQuery = {
+    ...(searchQuery ? { q: searchQuery } : {}),
+    ...(selectedCategoryIds.length === 1 ? { category_id: selectedCategoryIds[0] } : {}),
+    min_price: appliedPriceRange[0] > 0 ? appliedPriceRange[0] : undefined,
+    max_price: appliedPriceRange[1] < 10000 ? appliedPriceRange[1] : undefined,
+    ...(minRating > 0 ? { min_rating: minRating } : {}),
+    sort,
+    page,
+    page_size: 20,
+  }
+
+  const { products, pagination, isLoading, error } = useProducts(query)
 
   useEffect(() => {
     setUser(getUser())
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+    fetch(`${API_URL}/api/v1/categories`)
+      .then((r) => r.json())
+      .then((data) => setCategories(data.items ?? data.data ?? data))
+      .catch(() => {})
   }, [])
 
   const handleLogout = async () => {
@@ -214,27 +160,27 @@ export default function BuyerHomepage() {
     router.push("/login")
   }
 
-  const handleCategoryChange = (category: string, checked: boolean) => {
-    if (checked) {
-      setSelectedCategories([...selectedCategories, category])
-    } else {
-      setSelectedCategories(selectedCategories.filter((c) => c !== category))
-    }
+  const handleSearch = useCallback((e: React.FormEvent) => {
+    e.preventDefault()
+    setSearchQuery(searchInput)
+    setPage(1)
+  }, [searchInput])
+
+  const handleCategoryChange = (id: number, checked: boolean) => {
+    setPage(1)
+    setSelectedCategoryIds((prev) =>
+      checked ? [...prev, id] : prev.filter((c) => c !== id)
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation */}
+      {/* Header */}
       <header className="bg-slate-900 text-white sticky top-0 z-50">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="md:hidden text-white"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-              >
+              <Button variant="ghost" size="sm" className="md:hidden text-white" onClick={() => setSidebarOpen(!sidebarOpen)}>
                 <Menu className="w-5 h-5" />
               </Button>
               <div className="text-xl font-bold">
@@ -243,29 +189,36 @@ export default function BuyerHomepage() {
               </div>
             </div>
 
-            <div className="flex-1 max-w-2xl mx-4">
+            <form onSubmit={handleSearch} className="flex-1 max-w-2xl mx-4">
               <div className="relative">
-                <Input placeholder="Cauta produse..." className="w-full pl-4 pr-12 py-2 rounded-md border-orange-500 focus:border-orange-600" />
-                <Button size="sm" className="absolute right-1 top-1 bg-orange-500 hover:bg-orange-600 text-white">
+                <Input
+                  placeholder="Cauta produse..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="w-full pl-4 pr-12 py-2 rounded-md border-orange-500 text-slate-900"
+                />
+                <Button type="submit" size="sm" className="absolute right-1 top-1 bg-orange-500 hover:bg-orange-600 text-white">
                   <Search className="w-4 h-4" />
                 </Button>
               </div>
-            </div>
+            </form>
 
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" className="text-white hover:text-orange-400">
-                <ShoppingCart className="w-5 h-5" />
-                <span className="ml-1 hidden sm:inline">Cos (0)</span>
-              </Button>
+              <Link href="/checkout">
+                <Button variant="ghost" size="sm" className="text-white hover:text-orange-400">
+                  <ShoppingCart className="w-5 h-5" />
+                  <span className="ml-1 hidden sm:inline">Coș (0)</span>
+                </Button>
+              </Link>
               {user ? (
                 <>
-                  <span className="text-sm text-orange-300 hidden sm:inline">{user.email}</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white"
-                    onClick={handleLogout}
-                  >
+                  <Link href="/buyer/profile">
+                    <Button variant="ghost" size="sm" className="text-orange-300 hover:text-orange-400 hidden sm:flex">
+                      <User className="w-4 h-4 mr-1" />
+                      {user.email}
+                    </Button>
+                  </Link>
+                  <Button variant="outline" size="sm" className="border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white" onClick={handleLogout}>
                     <LogOut className="w-4 h-4 mr-1" />
                     Logout
                   </Button>
@@ -274,14 +227,11 @@ export default function BuyerHomepage() {
                 <>
                   <Link href="/login">
                     <Button variant="outline" size="sm" className="border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white">
-                      <User className="w-4 h-4 mr-1" />
-                      Login
+                      <User className="w-4 h-4 mr-1" />Login
                     </Button>
                   </Link>
                   <Link href="/register">
-                    <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white">
-                      Register
-                    </Button>
+                    <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white">Register</Button>
                   </Link>
                 </>
               )}
@@ -292,26 +242,22 @@ export default function BuyerHomepage() {
 
       <div className="container mx-auto px-4 py-6">
         <div className="flex gap-6">
-          {/* Sidebar Filters */}
-          <aside
-            className={`w-64 bg-white rounded-lg p-6 h-fit sticky top-24 border border-gray-200 shadow-sm ${sidebarOpen ? "block" : "hidden md:block"}`}
-          >
+          {/* Sidebar */}
+          <aside className={`w-64 shrink-0 bg-white rounded-lg p-6 h-fit sticky top-24 border border-gray-200 shadow-sm ${sidebarOpen ? "block" : "hidden md:block"}`}>
             <h3 className="font-semibold mb-4 text-slate-900">Filtre</h3>
 
             {/* Categories */}
             <div className="mb-6">
               <h4 className="font-medium mb-3 text-slate-800">Categorii</h4>
               <div className="space-y-2">
-                {categories.map((category) => (
-                  <div key={category} className="flex items-center space-x-2">
+                {categories.map((cat) => (
+                  <div key={cat.id} className="flex items-center space-x-2">
                     <Checkbox
-                      id={category}
-                      checked={selectedCategories.includes(category)}
-                      onCheckedChange={(checked) => handleCategoryChange(category, checked as boolean)}
+                      id={`cat-${cat.id}`}
+                      checked={selectedCategoryIds.includes(cat.id)}
+                      onCheckedChange={(checked) => handleCategoryChange(cat.id, checked as boolean)}
                     />
-                    <label htmlFor={category} className="text-sm">
-                      {category}
-                    </label>
+                    <label htmlFor={`cat-${cat.id}`} className="text-sm cursor-pointer">{cat.name}</label>
                   </div>
                 ))}
               </div>
@@ -319,83 +265,184 @@ export default function BuyerHomepage() {
 
             {/* Price Range */}
             <div className="mb-6">
-              <h4 className="font-medium mb-3 text-slate-800">Interval Pret</h4>
-              <Slider value={priceRange} onValueChange={setPriceRange} max={2500} step={50} className="mb-2" />
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>{priceRange[0]} RON</span>
-                <span>{priceRange[1]} RON</span>
+              <h4 className="font-medium mb-3 text-slate-800">Interval Preț</h4>
+              <div className="flex gap-2 mb-3">
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 mb-1 block">Min (RON)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={priceRange[1]}
+                    value={priceRange[0]}
+                    onChange={(e) => {
+                      const v = Number(e.target.value)
+                      setPriceRange([v, priceRange[1]])
+                    }}
+                    onBlur={() => { setAppliedPriceRange(priceRange); setPage(1) }}
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-gray-500 mb-1 block">Max (RON)</label>
+                  <input
+                    type="number"
+                    min={priceRange[0]}
+                    max={10000}
+                    value={priceRange[1]}
+                    onChange={(e) => {
+                      const v = Number(e.target.value)
+                      setPriceRange([priceRange[0], v])
+                    }}
+                    onBlur={() => { setAppliedPriceRange(priceRange); setPage(1) }}
+                    className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:border-orange-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <Slider
+                value={priceRange}
+                onValueChange={(v) => setPriceRange(v)}
+                onValueCommit={(v) => { setAppliedPriceRange(v); setPage(1) }}
+                min={0}
+                max={10000}
+                step={50}
+                className="mb-1"
+              />
+              <div className="flex justify-between text-xs text-gray-400">
+                <span>0 RON</span>
+                <span>10000 RON</span>
               </div>
             </div>
 
-            {/* Trust Score */}
+            {/* Min Rating */}
             <div className="mb-6">
-              <h4 className="font-medium mb-3 text-slate-800">Scor Incredere Minim</h4>
-              <Slider value={trustScore} onValueChange={setTrustScore} max={100} step={5} className="mb-2" />
-              <div className="text-sm text-gray-600">{trustScore[0]}% si mai mult</div>
-            </div>
-
-            {/* Seller Rating */}
-            <div className="mb-6">
-              <h4 className="font-medium mb-3 text-slate-800">Rating Vanzator</h4>
+              <h4 className="font-medium mb-3 text-slate-800">Rating minim</h4>
               <div className="space-y-2">
-                {[4, 3, 2, 1].map((rating) => (
-                  <div key={rating} className="flex items-center space-x-2">
-                    <Checkbox id={`rating-${rating}`} />
-                    <label htmlFor={`rating-${rating}`} className="flex items-center text-sm">
-                      <div className="flex">
-                        {[...Array(rating)].map((_, i) => (
-                          <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />
-                        ))}
-                      </div>
-                      <span className="ml-1">si mai mult</span>
+                {[4, 3, 2, 1].map((r) => (
+                  <div key={r} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`rating-${r}`}
+                      checked={minRating === r}
+                      onCheckedChange={(checked) => { setMinRating(checked ? r : 0); setPage(1) }}
+                    />
+                    <label htmlFor={`rating-${r}`} className="flex items-center text-sm cursor-pointer">
+                      {[...Array(r)].map((_, i) => (
+                        <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />
+                      ))}
+                      <span className="ml-1">și mai mult</span>
                     </label>
                   </div>
                 ))}
               </div>
             </div>
+
+            {/* Reset */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full border-orange-500 text-orange-600"
+              onClick={() => {
+                setSelectedCategoryIds([])
+                setPriceRange([0, 10000])
+                setAppliedPriceRange([0, 10000])
+                setMinRating(0)
+                setSearchInput("")
+                setSearchQuery("")
+                setSort("newest")
+                setPage(1)
+              }}
+            >
+              Resetează filtrele
+            </Button>
           </aside>
 
-          {/* Main Content */}
-          <main className="flex-1">
+          {/* Main */}
+          <main className="flex-1 min-w-0">
             {/* Results Header */}
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-semibold text-slate-900">Produse Recomandate</h2>
+              <h2 className="text-2xl font-semibold text-slate-900">
+                {searchInput ? `Rezultate pentru "${searchInput}"` : "Produse"}
+              </h2>
               <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-600">1-24 din 1,000+ rezultate</span>
-                <select className="border border-orange-300 rounded-md px-3 py-1 text-sm focus:border-orange-500 focus:ring-orange-500">
-                  <option>Cele mai relevante</option>
-                  <option>Pret: Mic la Mare</option>
-                  <option>Pret: Mare la Mic</option>
-                  <option>Rating Clienti</option>
-                  <option>Scor Incredere</option>
+                {pagination && (
+                  <span className="text-sm text-gray-600">
+                    {pagination.total_items} rezultate
+                  </span>
+                )}
+                <select
+                  value={sort}
+                  onChange={(e) => { setSort(e.target.value as ProductListQuery["sort"]); setPage(1) }}
+                  className="border border-orange-300 rounded-md px-3 py-1 text-sm focus:border-orange-500"
+                >
+                  {SORT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
                 </select>
               </div>
             </div>
 
-            {/* Trust Score Info Banner */}
+            {/* Trust Banner */}
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-orange-600" />
-                <span className="font-medium text-slate-900">Scor de Incredere AI</span>
+                <span className="font-medium text-slate-900">Platformă verificată</span>
+                <span className="text-sm text-slate-700 ml-2">Toți vânzătorii sunt verificați înainte de a lista produse.</span>
               </div>
-              <p className="text-sm text-slate-700">
-                Sistemul nostru AI analizeaza istoricul vanzatorilor, autenticitatea produselor si calitatea recenziilor pentru a oferi scoruri de incredere. Scorurile mai mari indica vanzatori mai de incredere si produse autentice.
-              </p>
             </div>
 
-            {/* Product Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+            {/* Loading */}
+            {isLoading && (
+              <div className="flex justify-center items-center py-24">
+                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+              </div>
+            )}
 
-            {/* Load More */}
-            <div className="text-center mt-8">
-              <Button variant="outline" className="px-8 border-orange-500 text-orange-600 hover:bg-orange-50">
-                Incarca Mai Multe Produse
-              </Button>
-            </div>
+            {/* Error */}
+            {error && !isLoading && (
+              <div className="text-center py-24 text-red-500">{error}</div>
+            )}
+
+            {/* Empty */}
+            {!isLoading && !error && products.length === 0 && (
+              <div className="text-center py-24 text-gray-500">Nu au fost găsite produse.</div>
+            )}
+
+            {/* Grid */}
+            {!isLoading && !error && products.length > 0 && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {products.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {pagination && pagination.total_pages > 1 && (
+                  <div className="flex justify-center items-center gap-2 mt-8">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page === 1}
+                      onClick={() => setPage((p) => p - 1)}
+                      className="border-orange-500 text-orange-600"
+                    >
+                      Anterior
+                    </Button>
+                    <span className="text-sm text-gray-600">
+                      Pagina {pagination.page} din {pagination.total_pages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page === pagination.total_pages}
+                      onClick={() => setPage((p) => p + 1)}
+                      className="border-orange-500 text-orange-600"
+                    >
+                      Următor
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
           </main>
         </div>
       </div>
