@@ -1,22 +1,46 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Star, Heart, Share2, ShoppingCart, Truck, RotateCcw, Award, Search, LogOut, Menu } from "lucide-react"
-import { logout } from "@/lib/auth-utils"
+import { logout, getUser } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useProduct } from "@/hooks/use-product"
+import ReviewForm from "@/components/ReviewForm"
+import ReviewList from "@/components/ReviewList"
 
 import { isOutOfStock, getDiscountedPrice } from "@/lib/types/product"
 import type { ProductImage } from "@/lib/types/product"
 
-function formatPrice(price: number, currency = "RON"): string {
-  return `${price.toFixed(2)} ${currency}`
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+
+interface Review {
+  id: number
+  rating: number
+  comment: string | null
+  buyer: { id: number; full_name: string | null; avatar_url: string | null }
+  created_at: string
+  seller_reply: string | null
+}
+
+async function fetchReviews(slug: string): Promise<{ data: Review[]; total: number }> {
+  try {
+    const res = await fetch(`${API_URL}/api/v1/products/${slug}/reviews?page=1&page_size=10`)
+    if (!res.ok) return { data: [], total: 0 }
+    const json = await res.json()
+    return { data: json.data ?? [], total: json.pagination?.total_items ?? 0 }
+  } catch {
+    return { data: [], total: 0 }
+  }
+}
+
+function formatPrice(price: number | string, currency = "RON"): string {
+  return `${Number(price).toFixed(2)} ${currency}`
 }
 
 function TrustBadge({ score }: { score: number }) {
@@ -82,7 +106,22 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const [selectedImage, setSelectedImage] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [reviewsTotal, setReviewsTotal] = useState(0)
+  const [reviewsLoading, setReviewsLoading] = useState(false)
   const router = useRouter()
+  const user = getUser()
+
+  useEffect(() => {
+    if (!id) return
+    setReviewsLoading(true)
+    fetchReviews(id)
+      .then(({ data, total }) => {
+        setReviews(data)
+        setReviewsTotal(total)
+      })
+      .finally(() => setReviewsLoading(false))
+  }, [id])
 
   const handleLogout = () => {
     logout()
@@ -90,14 +129,14 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   }
 
   if (isLoading) return <LoadingSpinner />
-  if (error || !product) return <ErrorState message={error ?? "Produsul nu a fost găsit."} onBack={() => window.history.back()} />
+  if (error || !product) return <ErrorState message={error ?? "Produsul nu a fost gasit."} onBack={() => window.history.back()} />
 
   const outOfStock = isOutOfStock(product)
 
   const sortedImages: ProductImage[] = [...product.images].sort((a, b) => {
     if (a.is_thumbnail && !b.is_thumbnail) return -1
     if (!a.is_thumbnail && b.is_thumbnail) return 1
-    return a.display_order - b.display_order
+    return a.order - b.order
   })
 
   const currentImageUrl = sortedImages[selectedImage]?.url ?? "/placeholder.svg"
@@ -164,12 +203,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               <div className="flex items-center gap-4 mb-4">
                 <StarRating rating={product.avg_rating} />
                 <span className="text-sm text-gray-600">
-                  {product.avg_rating.toFixed(1)} ({product.review_count} recenzii)
+                  {Number(product.avg_rating).toFixed(1)} ({product.review_count} recenzii)
                 </span>
               </div>
             </div>
 
-            <TrustBadge score={Math.round(product.seller.avg_rating * 20)} />
+            <TrustBadge score={Math.round(Number(product.seller.avg_rating) * 20)} />
 
             <div className="flex items-center gap-4">
               {product.discount_percent > 0 ? (
@@ -207,7 +246,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                       <div className="font-medium">{product.seller.company_name}</div>
                       <div className="text-sm text-gray-600 flex items-center gap-1">
                         <StarRating rating={product.seller.avg_rating} size="sm" />
-                        <span>{product.seller.avg_rating.toFixed(1)}</span>
+                        <span>{Number(product.seller.avg_rating).toFixed(1)}</span>
                       </div>
                     </div>
                   </div>
@@ -281,16 +320,36 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           </TabsContent>
 
           <TabsContent value="reviews" className="mt-6">
-            <Card>
-              <CardHeader><CardTitle>Recenzii clienți</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-center py-4">
-                  <div className="text-4xl font-bold mb-2">{product.avg_rating.toFixed(1)}</div>
-                  <div className="flex justify-center mb-2"><StarRating rating={product.avg_rating} /></div>
-                  <div className="text-sm text-gray-600">{product.review_count} recenzii totale</div>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              {/* Summary */}
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-center py-2">
+                    <div className="text-4xl font-bold mb-2">{Number(product.avg_rating).toFixed(1)}</div>
+                    <div className="flex justify-center mb-2"><StarRating rating={product.avg_rating} /></div>
+                    <div className="text-sm text-gray-600">{reviewsTotal} recenzie(i)</div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Form - only for logged in buyers */}
+              {user?.role === "buyer" && (
+                <ReviewForm
+                  productId={product.id}
+                  onReviewSubmitted={(review) => {
+                    setReviews(prev => [review, ...prev])
+                    setReviewsTotal(prev => prev + 1)
+                  }}
+                />
+              )}
+
+              {/* List */}
+              {reviewsLoading ? (
+                <div className="text-center py-8 text-gray-400">Se incarca recenziile...</div>
+              ) : (
+                <ReviewList reviews={reviews} totalCount={reviewsTotal} />
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </div>
