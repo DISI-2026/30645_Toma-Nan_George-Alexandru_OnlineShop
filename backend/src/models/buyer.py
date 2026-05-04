@@ -11,6 +11,7 @@ from .base import Base
 from .buyer_category_preference import buyer_category_preferences
 
 if TYPE_CHECKING:
+    from .cart_session import CartSession
     from .category import Category
     from .order import Order
     from .user import User
@@ -55,3 +56,8 @@ class Buyer(Base):
         back_populates="preferred_by_buyers",
     )
     orders: Mapped[list[Order]] = relationship(back_populates="buyer")
+    cart_session: Mapped[CartSession | None] = relationship(
+        back_populates="buyer",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )

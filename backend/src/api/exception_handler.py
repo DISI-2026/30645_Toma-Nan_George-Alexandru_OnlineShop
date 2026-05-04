@@ -17,6 +17,18 @@ from application.usecases.auth import (
     InvalidCredentialsError,
     PasswordDoesNotMatchMinimumRequirementsError,
 )
+from application.usecases.categories import (
+    CategoryAlreadyExistsError as ManagedCategoryAlreadyExistsError,
+    CategoryDeleteBlockedError,
+    CategoryNotFoundError as ManagedCategoryNotFoundError,
+    InvalidCategoryFieldError,
+)
+from application.usecases.cart import (
+    CartBuyerProfileNotFoundError,
+    CartItemNotFoundError,
+    CartProductNotFoundError,
+    CartQuantityExceedsStockError,
+)
 from api.dependencies.seller import SellerNotFoundError
 from application.usecases.products import (
     CategoryNotFoundError,
@@ -31,13 +43,20 @@ from application.usecases.products import (
 )
 from application.usecases.orders import (
     BuyerProfileNotFoundError,
+    CartEmptyError,
+    InsufficientStockError,
     InvalidOrderStatusTransitionError,
     OrderAccessDeniedError,
     OrderNotFoundError,
 )
 from application.usecases.sellers import (
+    AdminSellerCategoryNotFoundError,
+    AdminSellerNotFoundError,
     SellerProfileAlreadyExistsError,
     SellerProfileNotFoundError,
+    SellerCategoryAssignmentAlreadyExistsError,
+    SellerCategoryAssignmentDeleteBlockedError,
+    SellerCategoryAssignmentNotFoundError,
 )
 
 logger = logging.getLogger(__name__)
@@ -84,12 +103,51 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_409_CONFLICT,
                         detail="Seller profile already exists.",
                     ) from exc
-                except SellerProfileNotFoundError as exc:
+                except (
+                    SellerProfileNotFoundError,
+                    AdminSellerNotFoundError,
+                    AdminSellerCategoryNotFoundError,
+                    SellerCategoryAssignmentNotFoundError,
+                ) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=str(exc),
                     ) from exc
+                except ManagedCategoryNotFoundError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=str(exc),
+                    ) from exc
+                except ManagedCategoryAlreadyExistsError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=str(exc),
+                    ) from exc
+                except SellerCategoryAssignmentAlreadyExistsError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=str(exc),
+                    ) from exc
+                except CategoryDeleteBlockedError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=str(exc),
+                    ) from exc
+                except SellerCategoryAssignmentDeleteBlockedError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=str(exc),
+                    ) from exc
                 except (OrderNotFoundError, BuyerProfileNotFoundError) as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=str(exc),
+                    ) from exc
+                except (
+                    CartProductNotFoundError,
+                    CartItemNotFoundError,
+                    CartBuyerProfileNotFoundError,
+                ) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=str(exc),
@@ -125,10 +183,20 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         detail=str(exc),
                     ) from exc
                 except (
+                    CartQuantityExceedsStockError,
+                    CartEmptyError,
+                    InsufficientStockError,
+                ) as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=str(exc),
+                    ) from exc
+                except (
                     InvalidFieldError,
                     InvalidImageFormatError,
                     ImageTooLargeError,
                     TooManyImagesError,
+                    InvalidCategoryFieldError,
                 ) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
@@ -184,9 +252,39 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Seller profile already exists.",
                 ) from exc
-            except SellerProfileNotFoundError as exc:
+            except (
+                SellerProfileNotFoundError,
+                AdminSellerNotFoundError,
+                AdminSellerCategoryNotFoundError,
+                SellerCategoryAssignmentNotFoundError,
+            ) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
+                    detail=str(exc),
+                ) from exc
+            except ManagedCategoryNotFoundError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=str(exc),
+                ) from exc
+            except ManagedCategoryAlreadyExistsError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=str(exc),
+                ) from exc
+            except SellerCategoryAssignmentAlreadyExistsError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=str(exc),
+                ) from exc
+            except CategoryDeleteBlockedError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=str(exc),
+                ) from exc
+            except SellerCategoryAssignmentDeleteBlockedError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=str(exc),
                 ) from exc
             except (ProductNotFoundError, SellerNotFoundError, CategoryNotFoundError) as exc:
@@ -195,6 +293,15 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     detail=str(exc),
                 ) from exc
             except (OrderNotFoundError, BuyerProfileNotFoundError) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=str(exc),
+                ) from exc
+            except (
+                CartProductNotFoundError,
+                CartItemNotFoundError,
+                CartBuyerProfileNotFoundError,
+            ) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=str(exc),
@@ -225,10 +332,20 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     detail=str(exc),
                 ) from exc
             except (
+                CartQuantityExceedsStockError,
+                CartEmptyError,
+                InsufficientStockError,
+            ) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=str(exc),
+                ) from exc
+            except (
                 InvalidFieldError,
                 InvalidImageFormatError,
                 ImageTooLargeError,
                 TooManyImagesError,
+                InvalidCategoryFieldError,
             ) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

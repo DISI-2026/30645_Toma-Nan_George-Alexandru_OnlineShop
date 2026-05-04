@@ -10,7 +10,7 @@ services:
             DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/onlineshop
             AUTO_INIT_DB: "true"
             RESET_DB_ON_STARTUP: "true"
-            FRONTEND_BASE_URL: http://frontend:3000
+            FRONTEND_BASE_URL: http://localhost:3000
             PASSWORD_RESET_TOKEN_TTL_MINUTES: 30
             SMTP_HOST: mailpit
             SMTP_PORT: 1025
@@ -60,6 +60,7 @@ services:
         ports:
             - "8025:8025" # web UI
             - "1025:1025" # SMTP
+
 
 # Uncomment when enabling persistent Postgres storage:
 # volumes:

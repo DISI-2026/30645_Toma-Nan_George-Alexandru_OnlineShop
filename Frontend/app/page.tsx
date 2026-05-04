@@ -1,14 +1,17 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Search, ShoppingCart, User, Menu, Star, Shield } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Search, ShoppingCart, User, Menu, Star, Shield, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
 import { Checkbox } from "@/components/ui/checkbox"
+import { getUser, clearLocalAuth } from "@/lib/auth-utils"
+import { logoutUser } from "@/lib/api/auth"
 
 // Mock data
 const categories = ["Electronice", "Imbracaminte", "Casa & Gradina", "Sport", "Carti", "Jucarii", "Frumusete", "Auto"]
@@ -193,10 +196,23 @@ function ProductCard({ product }: { product: (typeof products)[0] }) {
 }
 
 export default function BuyerHomepage() {
+  const router = useRouter()
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [priceRange, setPriceRange] = useState([0, 1000])
   const [trustScore, setTrustScore] = useState([70])
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [user, setUser] = useState<{ id: number; email: string; role: string } | null>(null)
+
+  useEffect(() => {
+    setUser(getUser())
+  }, [])
+
+  const handleLogout = async () => {
+    await logoutUser()
+    clearLocalAuth()
+    setUser(null)
+    router.push("/login")
+  }
 
   const handleCategoryChange = (category: string, checked: boolean) => {
     if (checked) {
@@ -241,17 +257,34 @@ export default function BuyerHomepage() {
                 <ShoppingCart className="w-5 h-5" />
                 <span className="ml-1 hidden sm:inline">Cos (0)</span>
               </Button>
-              <Link href="/login">
-                <Button variant="outline" size="sm" className="border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white">
-                  <User className="w-4 h-4 mr-1" />
-                  Login
-                </Button>
-              </Link>
-              <Link href="/register">
-                <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white">
-                  Register
-                </Button>
-              </Link>
+              {user ? (
+                <>
+                  <span className="text-sm text-orange-300 hidden sm:inline">{user.email}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="w-4 h-4 mr-1" />
+                    Logout
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link href="/login">
+                    <Button variant="outline" size="sm" className="border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white">
+                      <User className="w-4 h-4 mr-1" />
+                      Login
+                    </Button>
+                  </Link>
+                  <Link href="/register">
+                    <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white">
+                      Register
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>

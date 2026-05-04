@@ -81,3 +81,32 @@ class UpdateOrderStatusResponseDTO(BaseModel):
     id: int
     status: OrderStatus
     valid_next_transitions: list[OrderStatus]
+
+
+class PlaceOrderRequestDTO(BaseModel):
+    delivery_address: str = Field(min_length=1, max_length=1000)
+    notes: str | None = Field(default=None, max_length=3000)
+
+
+class CheckoutOrderDTO(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    order_number: str
+    seller_id: int
+    items: list[OrderItemDTO]
+    total: Decimal
+    status: OrderStatus
+    placed_at: datetime
+
+
+class PlaceOrderResponseDTO(BaseModel):
+    orders: list[CheckoutOrderDTO]
+    order_count: int = Field(ge=0)
+
+
+class OrderTrackingStatusResponseDTO(BaseModel):
+    id: int
+    status: OrderStatus
+    status_history: list[OrderStatusHistoryDTO]
+    last_updated: datetime
