@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+from pathlib import Path
 
 import pytest
 from httpx import AsyncClient
@@ -99,7 +100,7 @@ async def test_get_private_profile_requires_access_token(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_create_profile_with_logo(client: AsyncClient, session_factory):
+async def test_create_profile_with_logo(client: AsyncClient, session_factory, app):
     await seed_seller_user(session_factory)
     cookies = auth_cookies(user_id=1, role="seller")
 
@@ -132,6 +133,9 @@ async def test_create_profile_with_logo(client: AsyncClient, session_factory):
     assert response.status_code == 201
     assert payload["company_name"] == "Tech Store"
     assert payload["logo_url"].startswith("/media/sellers/logo_")
+    logo_path = Path(app.state.settings.media_root) / payload["logo_url"].removeprefix("/media/")
+    assert logo_path.exists()
+    assert logo_path.read_bytes() == b"pngdata"
     assert payload["email"] == "seller@example.com"
     assert payload["phone"] == "+40700000000"
     print("✅ Profile created with all fields including private data (email, phone, address, tax_id)")
@@ -181,7 +185,7 @@ async def test_update_profile_updates_fields(client: AsyncClient, session_factor
 
 
 @pytest.mark.asyncio
-async def test_update_profile_replaces_logo(client: AsyncClient, session_factory):
+async def test_update_profile_replaces_logo(client: AsyncClient, session_factory, app):
     await seed_seller_user(session_factory)
     await seed_seller_profile(session_factory)
     cookies = auth_cookies(user_id=1, role="seller")
@@ -196,3 +200,28 @@ async def test_update_profile_replaces_logo(client: AsyncClient, session_factory
     payload = patch_response.json()
     assert payload["logo_url"] != "/media/sellers/logo_test.png"
     assert payload["logo_url"].startswith("/media/sellers/logo_")
+    logo_path = Path(app.state.settings.media_root) / payload["logo_url"].removeprefix("/media/")
+    assert logo_path.exists()
+    assert logo_path.read_bytes() == b"newdata"
+
+
+@pytest.mark.asyncio
+async def test_update_profile_adds_logo_when_missing(client: AsyncClient, session_factory, app):
+    await seed_seller_user(session_factory)
+    async with session_factory() as session:
+        session.add(Seller(user_id=1, company_name="Tech Store"))
+        await session.commit()
+    cookies = auth_cookies(user_id=1, role="seller")
+
+    patch_response = await client.patch(
+        "/api/v1/sellers/me",
+        cookies=cookies,
+        files={"logo": ("logo.png", io.BytesIO(b"first-logo"), "image/png")},
+    )
+
+    assert patch_response.status_code == 200
+    payload = patch_response.json()
+    assert payload["logo_url"].startswith("/media/sellers/logo_")
+    logo_path = Path(app.state.settings.media_root) / payload["logo_url"].removeprefix("/media/")
+    assert logo_path.exists()
+    assert logo_path.read_bytes() == b"first-logo"
