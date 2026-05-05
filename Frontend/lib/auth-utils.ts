@@ -59,6 +59,16 @@ export function clearLocalAuth(): void {
 }
 
 /**
+ * Logout complet - apelează API și șterge datele locale
+ */
+export async function logout(): Promise<void> {
+  // Import dinamic pentru a evita dependențe circulare
+  const { logoutUser } = await import("./api/auth")
+  await logoutUser()
+  clearLocalAuth()
+}
+
+/**
  * Obține path-ul de redirect bazat pe rol
  */
 export function getRedirectPath(role: string): string {
