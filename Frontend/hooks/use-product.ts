@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import { getProductById } from "@/lib/api/products"
@@ -28,7 +28,7 @@ export function useProduct(id: string): UseProductResult {
         if (!cancelled) setProduct(data)
       } catch (err) {
         if (!cancelled)
-          setError(err instanceof Error ? err.message : "Eroare de rețea. Încearcă din nou.")
+          setError(err instanceof Error ? err.message : "Eroare de re╚Ťea. ├Äncearc─â din nou.")
       } finally {
         if (!cancelled) setIsLoading(false)
       }
