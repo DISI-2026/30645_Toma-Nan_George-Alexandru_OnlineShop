@@ -1,30 +1,31 @@
 
+
+import { getAddressesFromBuyer, saveAddressesToBuyer } from "@/lib/api/orders"
+
 export interface SavedAddress {
   id: string
-  name: string      
+  name: string
   address: string
 }
 
-const KEY = "saved_addresses"
-
-export function getAddresses(): SavedAddress[] {
-  if (typeof window === "undefined") return []
-  try {
-    const raw = localStorage.getItem(KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
+export async function getAddressesFromDB(): Promise<SavedAddress[]> {
+  return getAddressesFromBuyer()
 }
 
-export function saveAddress(addr: Omit<SavedAddress, "id">): SavedAddress {
-  const addresses = getAddresses()
+export async function addAddressToDB(addr: Omit<SavedAddress, "id">): Promise<SavedAddress> {
+  const addresses = await getAddressesFromBuyer()
   const newAddr: SavedAddress = { ...addr, id: Date.now().toString() }
-  localStorage.setItem(KEY, JSON.stringify([...addresses, newAddr]))
+  await saveAddressesToBuyer([...addresses, newAddr])
   return newAddr
 }
 
-export function deleteAddress(id: string): void {
-  const addresses = getAddresses().filter((a) => a.id !== id)
-  localStorage.setItem(KEY, JSON.stringify(addresses))
+export async function deleteAddressFromDB(id: string): Promise<void> {
+  const addresses = await getAddressesFromBuyer()
+  await saveAddressesToBuyer(addresses.filter((a: SavedAddress) => a.id !== id))
 }
+
+export function getAddresses(): SavedAddress[] { return [] }
+export function saveAddress(addr: Omit<SavedAddress, "id">): SavedAddress {
+  return { ...addr, id: Date.now().toString() }
+}
+export function deleteAddress(_id: string): void {}

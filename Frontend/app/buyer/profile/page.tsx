@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import { getBuyerProfile, updateBuyerProfile, type BuyerProfile } from "@/lib/api/buyer"
-import { getAddresses, saveAddress, deleteAddress, type SavedAddress } from "@/lib/addresses"
+import { getAddressesFromDB, addAddressToDB, deleteAddressFromDB, type SavedAddress } from "@/lib/addresses"
 import Navbar from "@/components/Navbar"
 import OrdersList from "@/components/buyer/OrdersList"
 
@@ -40,7 +40,7 @@ export default function BuyerProfilePage() {
   const [priceRange, setPriceRange] = useState([0, 2500])
 
   useEffect(() => {
-    setAddresses(getAddresses())
+    getAddressesFromDB().then(setAddresses).catch(() => setAddresses([]))
 
     fetch(`${API_URL}/api/v1/categories`)
       .then(r => r.json())
@@ -97,24 +97,34 @@ export default function BuyerProfilePage() {
     }
   }
 
-  const handleAddAddress = (e: React.FormEvent) => {
+  const handleAddAddress = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newName.trim() || !newAddress.trim()) {
       toast.error("Câmpuri obligatorii", { description: "Completează numele și adresa." })
       return
     }
-    const saved = saveAddress({ name: newName.trim(), address: newAddress.trim() })
-    setAddresses(getAddresses())
-    setNewName("")
-    setNewAddress("")
-    setAddingAddress(false)
-    toast.success("✓ Adresă adăugată", { description: `"${saved.name}" a fost salvată.`, duration: 2000 })
+    try {
+      const saved = await addAddressToDB({ name: newName.trim(), address: newAddress.trim() })
+      const updated = await getAddressesFromDB()
+      setAddresses(updated)
+      setNewName("")
+      setNewAddress("")
+      setAddingAddress(false)
+      toast.success("✓ Adresă adăugată", { description: `"${saved.name}" a fost salvată.`, duration: 2000 })
+    } catch {
+      toast.error("Eroare", { description: "Nu s-a putut salva adresa.", duration: 3000 })
+    }
   }
 
-  const handleDeleteAddress = (id: string, name: string) => {
-    deleteAddress(id)
-    setAddresses(getAddresses())
-    toast.success("🗑️ Adresă ștearsă", { description: `"${name}" a fost eliminată.`, duration: 2000 })
+  const handleDeleteAddress = async (id: string, name: string) => {
+    try {
+      await deleteAddressFromDB(id)
+      const updated = await getAddressesFromDB()
+      setAddresses(updated)
+      toast.success("🗑️ Adresă ștearsă", { description: `"${name}" a fost eliminată.`, duration: 2000 })
+    } catch {
+      toast.error("Eroare", { description: "Nu s-a putut șterge adresa.", duration: 3000 })
+    }
   }
 
   const handleSavePreferences = async (e: React.FormEvent) => {

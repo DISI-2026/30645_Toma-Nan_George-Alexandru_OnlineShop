@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { getCart, type Cart } from "@/lib/api/cart"
 import { createOrder, saveOrderIds, type CreateOrderRequest } from "@/lib/api/orders"
-import { getAddresses, saveAddress, type SavedAddress } from "@/lib/addresses"
+import { getAddressesFromDB, addAddressToDB, type SavedAddress } from "@/lib/addresses"
 import { useCart } from "@/contexts/CartContext"
 import { toast } from "sonner"
 import Navbar from "@/components/Navbar"
@@ -39,9 +39,12 @@ export default function CheckoutPage() {
   })()
 
   useEffect(() => {
-    const addrs = getAddresses()
-    setSavedAddresses(addrs)
-    if (addrs.length > 0) setSelectedAddressId(addrs[0].id)
+    getAddressesFromDB()
+      .then(addrs => {
+        setSavedAddresses(addrs)
+        if (addrs.length > 0) setSelectedAddressId(addrs[0].id)
+      })
+      .catch(() => {})
     loadCart()
   }, [])
 
@@ -67,19 +70,23 @@ export default function CheckoutPage() {
     }
   }
 
-  const handleSaveNewAddress = () => {
+  const handleSaveNewAddress = async () => {
     if (!newAddrName.trim() || !newAddrValue.trim()) {
       toast.error("Completează numele și adresa")
       return
     }
-    const saved = saveAddress({ name: newAddrName.trim(), address: newAddrValue.trim() })
-    const updated = getAddresses()
-    setSavedAddresses(updated)
-    setSelectedAddressId(saved.id)
-    setAddingNew(false)
-    setNewAddrName("")
-    setNewAddrValue("")
-    toast.success("✓ Adresă salvată", { duration: 2000 })
+    try {
+      const saved = await addAddressToDB({ name: newAddrName.trim(), address: newAddrValue.trim() })
+      const updated = await getAddressesFromDB()
+      setSavedAddresses(updated)
+      setSelectedAddressId(saved.id)
+      setAddingNew(false)
+      setNewAddrName("")
+      setNewAddrValue("")
+      toast.success("✓ Adresă salvată", { duration: 2000 })
+    } catch {
+      toast.error("Eroare", { description: "Nu s-a putut salva adresa.", duration: 3000 })
+    }
   }
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
@@ -96,7 +103,7 @@ export default function CheckoutPage() {
         notes: notes.trim() || undefined,
       }
       const result = await createOrder(orderData)
-      saveOrderIds(result.orders.map(o => o.id))
+      await saveOrderIds(result.orders.map(o => o.id))
       await refreshCart()
       toast.success("✅ Comandă plasată cu succes!", {
         description: `${result.order_count} comandă/comenzi create. Te redirecționăm...`,
