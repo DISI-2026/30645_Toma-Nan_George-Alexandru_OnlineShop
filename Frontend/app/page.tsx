@@ -259,7 +259,12 @@ export default function BuyerHomepage() {
               </Button>
               {user ? (
                 <>
-                  <span className="text-sm text-orange-300 hidden sm:inline">{user.email}</span>
+                  <Link href={user.role === 'buyer' ? '/buyer/profile' : user.role === 'seller' ? '/seller' : '/admin'}>
+                    <Button variant="ghost" size="sm" className="text-orange-300 hover:text-orange-400 hidden sm:inline-flex">
+                      <User className="w-4 h-4 mr-1" />
+                      {user.email}
+                    </Button>
+                  </Link>
                   <Button
                     variant="outline"
                     size="sm"
