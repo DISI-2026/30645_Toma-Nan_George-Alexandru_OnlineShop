@@ -1,8 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Plus, Edit, Trash2, Search, ArrowLeft } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Plus, Edit, Trash2, Search, ArrowLeft, Loader2, LogOut } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,47 +26,25 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-
-// Mock data - va fi înlocuit cu date reale din API
-const mockCategories = [
-  {
-    id: 1,
-    name: "Electronice",
-    description: "Produse electronice și gadgeturi",
-    slug: "electronice",
-    product_count: 1247,
-    created_at: "2024-01-15T10:00:00Z",
-    updated_at: "2024-01-15T10:00:00Z",
-  },
-  {
-    id: 2,
-    name: "Îmbrăcăminte",
-    description: "Haine și accesorii vestimentare",
-    slug: "imbracaminte",
-    product_count: 856,
-    created_at: "2024-01-15T10:00:00Z",
-    updated_at: "2024-01-15T10:00:00Z",
-  },
-  {
-    id: 3,
-    name: "Casă & Grădină",
-    description: "Produse pentru casă și grădină",
-    slug: "casa-gradina",
-    product_count: 543,
-    created_at: "2024-01-15T10:00:00Z",
-    updated_at: "2024-01-15T10:00:00Z",
-  },
-]
-
-type Category = typeof mockCategories[0]
+import {
+  listCategories,
+  createCategory,
+  patchCategory,
+  deleteCategory,
+  type Category,
+} from "@/lib/api/categories"
+import { logout } from "@/lib/auth-utils"
 
 export default function AdminCategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>(mockCategories)
+  const router = useRouter()
+  const [categories, setCategories] = useState<Category[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   
   // Form state
   const [formData, setFormData] = useState({
@@ -72,32 +52,112 @@ export default function AdminCategoriesPage() {
     description: "",
   })
 
+  // Load categories on mount
+  useEffect(() => {
+    loadCategories()
+  }, [])
+
+  const loadCategories = async () => {
+    try {
+      setIsLoading(true)
+      const response = await listCategories(1, 100)
+      setCategories(response.items)
+    } catch (error) {
+      toast.error("Eroare la încărcarea categoriilor", {
+        description: error instanceof Error ? error.message : "Te rugăm să încerci din nou.",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    router.push("/")
+  }
+
   // Filtered categories based on search
   const filteredCategories = categories.filter((category) =>
     category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     category.description?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const handleCreateCategory = () => {
-    // TODO: API call pentru creare categorie
-    console.log("Create category:", formData)
-    setIsCreateDialogOpen(false)
-    setFormData({ name: "", description: "" })
+  const handleCreateCategory = async () => {
+    if (!formData.name.trim()) return
+
+    try {
+      setIsSubmitting(true)
+      const newCategory = await createCategory({
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+      })
+      
+      setCategories([...categories, newCategory])
+      setIsCreateDialogOpen(false)
+      setFormData({ name: "", description: "" })
+      
+      toast.success("Categorie creată cu succes!", {
+        description: `Categoria "${newCategory.name}" a fost adăugată.`,
+      })
+    } catch (error) {
+      toast.error("Eroare la crearea categoriei", {
+        description: error instanceof Error ? error.message : "Te rugăm să încerci din nou.",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const handleEditCategory = () => {
-    // TODO: API call pentru editare categorie
-    console.log("Edit category:", selectedCategory?.id, formData)
-    setIsEditDialogOpen(false)
-    setSelectedCategory(null)
-    setFormData({ name: "", description: "" })
+  const handleEditCategory = async () => {
+    if (!selectedCategory || !formData.name.trim()) return
+
+    try {
+      setIsSubmitting(true)
+      const updatedCategory = await patchCategory(selectedCategory.id, {
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+      })
+      
+      setCategories(
+        categories.map((cat) => (cat.id === updatedCategory.id ? updatedCategory : cat))
+      )
+      setIsEditDialogOpen(false)
+      setSelectedCategory(null)
+      setFormData({ name: "", description: "" })
+      
+      toast.success("Categorie actualizată cu succes!", {
+        description: `Categoria "${updatedCategory.name}" a fost modificată.`,
+      })
+    } catch (error) {
+      toast.error("Eroare la actualizarea categoriei", {
+        description: error instanceof Error ? error.message : "Te rugăm să încerci din nou.",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const handleDeleteCategory = () => {
-    // TODO: API call pentru ștergere categorie
-    console.log("Delete category:", selectedCategory?.id)
-    setIsDeleteDialogOpen(false)
-    setSelectedCategory(null)
+  const handleDeleteCategory = async () => {
+    if (!selectedCategory) return
+
+    try {
+      setIsSubmitting(true)
+      await deleteCategory(selectedCategory.id)
+      
+      setCategories(categories.filter((cat) => cat.id !== selectedCategory.id))
+      setIsDeleteDialogOpen(false)
+      setSelectedCategory(null)
+      
+      toast.success("Categorie ștearsă cu succes!", {
+        description: `Categoria "${selectedCategory.name}" a fost eliminată.`,
+      })
+    } catch (error) {
+      toast.error("Eroare la ștergerea categoriei", {
+        description: error instanceof Error ? error.message : "Te rugăm să încerci din nou.",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const openEditDialog = (category: Category) => {
@@ -128,17 +188,28 @@ export default function AdminCategoriesPage() {
                 </Button>
               </Link>
               <div>
-                <h1 className="text-2xl font-bold">Gestionare Categorii</h1>
+                <h1 className="text-2xl font-bold text-orange-600">Gestionare Categorii</h1>
                 <p className="text-gray-600">Administrează categoriile de produse</p>
               </div>
             </div>
-            <Button
-              onClick={() => setIsCreateDialogOpen(true)}
-              className="bg-orange-500 hover:bg-orange-600"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Adaugă Categorie
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => setIsCreateDialogOpen(true)}
+                className="bg-orange-500 hover:bg-orange-600"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Adaugă Categorie
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleLogout}
+                className="flex items-center gap-2 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -175,62 +246,69 @@ export default function AdminCategoriesPage() {
             <CardTitle>Lista Categorii</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Nume</TableHead>
-                  <TableHead>Descriere</TableHead>
-                  <TableHead>Slug</TableHead>
-                  <TableHead className="text-right">Produse</TableHead>
-                  <TableHead className="text-right">Acțiuni</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredCategories.length === 0 ? (
+            {isLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+                <span className="ml-3 text-gray-600">Se încarcă categoriile...</span>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                      Nu s-au găsit categorii
-                    </TableCell>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Nume</TableHead>
+                    <TableHead>Descriere</TableHead>
+                    <TableHead>Slug</TableHead>
+                    <TableHead className="text-right">Produse</TableHead>
+                    <TableHead className="text-right">Acțiuni</TableHead>
                   </TableRow>
-                ) : (
-                  filteredCategories.map((category) => (
-                    <TableRow key={category.id}>
-                      <TableCell className="font-medium">{category.id}</TableCell>
-                      <TableCell className="font-medium">{category.name}</TableCell>
-                      <TableCell className="max-w-md truncate">
-                        {category.description || "-"}
-                      </TableCell>
-                      <TableCell>
-                        <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                          {category.slug}
-                        </code>
-                      </TableCell>
-                      <TableCell className="text-right">{category.product_count}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEditDialog(category)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openDeleteDialog(category)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                </TableHeader>
+                <TableBody>
+                  {filteredCategories.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                        Nu s-au găsit categorii
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    filteredCategories.map((category) => (
+                      <TableRow key={category.id}>
+                        <TableCell className="font-medium">{category.id}</TableCell>
+                        <TableCell className="font-medium">{category.name}</TableCell>
+                        <TableCell className="max-w-md truncate">
+                          {category.description || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                            {category.slug}
+                          </code>
+                        </TableCell>
+                        <TableCell className="text-right">{category.product_count}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditDialog(category)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openDeleteDialog(category)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -266,15 +344,22 @@ export default function AdminCategoriesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} disabled={isSubmitting}>
               Anulează
             </Button>
             <Button
               onClick={handleCreateCategory}
               className="bg-orange-500 hover:bg-orange-600"
-              disabled={!formData.name.trim()}
+              disabled={!formData.name.trim() || isSubmitting}
             >
-              Creează Categorie
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Se creează...
+                </>
+              ) : (
+                "Creează Categorie"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -319,15 +404,22 @@ export default function AdminCategoriesPage() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={isSubmitting}>
               Anulează
             </Button>
             <Button
               onClick={handleEditCategory}
               className="bg-orange-500 hover:bg-orange-600"
-              disabled={!formData.name.trim()}
+              disabled={!formData.name.trim() || isSubmitting}
             >
-              Salvează Modificările
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Se salvează...
+                </>
+              ) : (
+                "Salvează Modificările"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -348,15 +440,23 @@ export default function AdminCategoriesPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isSubmitting}>
               Anulează
             </Button>
             <Button
               onClick={handleDeleteCategory}
               variant="destructive"
               className="bg-red-600 hover:bg-red-700"
+              disabled={isSubmitting}
             >
-              Șterge Categoria
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Se șterge...
+                </>
+              ) : (
+                "Șterge Categoria"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
