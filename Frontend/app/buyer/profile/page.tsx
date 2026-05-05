@@ -1,10 +1,8 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { User, Save, MapPin, Settings, Loader2, Search, LogOut, Menu } from "lucide-react"
-import { logout } from "@/lib/auth-utils"
+import { useRouter, useSearchParams } from "next/navigation"
+import { User, Save, MapPin, Settings, Loader2, Plus, Trash2, Package } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,46 +12,41 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
 import { getBuyerProfile, updateBuyerProfile, type BuyerProfile } from "@/lib/api/buyer"
+import { getAddresses, saveAddress, deleteAddress, type SavedAddress } from "@/lib/addresses"
+import Navbar from "@/components/Navbar"
+import OrdersList from "@/components/buyer/OrdersList"
 
-// Categorii statice până când BE expune /api/v1/categories
-const STATIC_CATEGORIES = [
-  { id: "cat-electronice", name: "Electronice" },
-  { id: "cat-imbracaminte", name: "Imbracaminte" },
-  { id: "cat-casa", name: "Casa & Gradina" },
-  { id: "cat-sport", name: "Sport" },
-  { id: "cat-carti", name: "Carti" },
-  { id: "cat-jucarii", name: "Jucarii" },
-  { id: "cat-frumusete", name: "Frumusete" },
-  { id: "cat-auto", name: "Auto" },
-  { id: "cat-alimente", name: "Alimente" },
-  { id: "cat-sanatate", name: "Sanatate" },
-]
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 export default function BuyerProfilePage() {
   const router = useRouter()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-
-  const handleLogout = () => {
-    logout()
-    router.push("/")
-  }
+  const searchParams = useSearchParams()
+  const defaultTab = searchParams.get('tab') ?? 'personal'
 
   const [pageLoading, setPageLoading] = useState(true)
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
 
-  
   const [personalLoading, setPersonalLoading] = useState(false)
   const [personal, setPersonal] = useState({ full_name: "", email: "", phone: "" })
 
-  const [addressLoading, setAddressLoading] = useState(false)
-  const [address, setAddress] = useState({
-    street: "", city: "", county: "", postal_code: "", country: "Romania",
-  })
+  // Address book
+  const [addresses, setAddresses] = useState<SavedAddress[]>([])
+  const [newName, setNewName] = useState("")
+  const [newAddress, setNewAddress] = useState("")
+  const [addingAddress, setAddingAddress] = useState(false)
 
   const [prefsLoading, setPrefsLoading] = useState(false)
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([])
   const [priceRange, setPriceRange] = useState([0, 2500])
 
   useEffect(() => {
+    setAddresses(getAddresses())
+
+    fetch(`${API_URL}/api/v1/categories`)
+      .then(r => r.json())
+      .then(data => setCategories(data.items ?? data.data ?? data))
+      .catch(() => {})
+
     getBuyerProfile()
       .then((profile: BuyerProfile) => {
         setPersonal({
@@ -61,25 +54,14 @@ export default function BuyerProfilePage() {
           email: profile.email ?? "",
           phone: profile.phone ?? "",
         })
-        if (profile.address) {
-          // Parse address string back to fields
-          const parts = profile.address.split(',').map(p => p.trim())
-          setAddress({
-            street: parts[0] || "",
-            city: parts[1] || "",
-            county: parts[2] || "",
-            postal_code: parts[3] || "",
-            country: parts[4] || "Romania",
-          })
-        }
         if (profile.preferences) {
           setSelectedCategoryIds(
-            profile.preferences.favorite_categories?.map((c) => c.id) ?? []
+            profile.preferences.favorite_categories?.map((c) => c.category_id) ?? []
           )
           if (profile.preferences.price_range) {
             setPriceRange([
-              profile.preferences.price_range.min,
-              profile.preferences.price_range.max,
+              profile.preferences.price_range.min ?? 0,
+              profile.preferences.price_range.max ?? 2500,
             ])
           }
         }
@@ -92,7 +74,7 @@ export default function BuyerProfilePage() {
       .finally(() => setPageLoading(false))
   }, [])
 
-  const handleCategoryChange = (id: string, checked: boolean) => {
+  const handleCategoryChange = (id: number, checked: boolean) => {
     setSelectedCategoryIds((prev) =>
       checked ? [...prev, id] : prev.filter((c) => c !== id)
     )
@@ -100,55 +82,39 @@ export default function BuyerProfilePage() {
 
   const handleSavePersonal = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!personal.full_name.trim() || !personal.email.trim()) {
-      toast.error("Câmpuri obligatorii lipsă", {
-        description: "Numele și email-ul sunt obligatorii.",
-      })
+    if (!personal.full_name.trim()) {
+      toast.error("Câmpuri obligatorii lipsă", { description: "Numele este obligatoriu." })
       return
     }
     setPersonalLoading(true)
     try {
-      await updateBuyerProfile({
-        full_name: personal.full_name,
-        phone: personal.phone,
-      })
+      await updateBuyerProfile({ full_name: personal.full_name, phone: personal.phone })
       toast.success("Date personale salvate cu succes!")
     } catch (err) {
-      toast.error("Eroare la salvare", {
-        description: err instanceof Error ? err.message : "Încearcă din nou.",
-      })
+      toast.error("Eroare la salvare", { description: err instanceof Error ? err.message : "Încearcă din nou." })
     } finally {
       setPersonalLoading(false)
     }
   }
 
-  const handleSaveAddress = async (e: React.FormEvent) => {
+  const handleAddAddress = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!address.street.trim() || !address.city.trim()) {
-      toast.error("Câmpuri obligatorii lipsă", {
-        description: "Strada și orașul sunt obligatorii.",
-      })
+    if (!newName.trim() || !newAddress.trim()) {
+      toast.error("Câmpuri obligatorii", { description: "Completează numele și adresa." })
       return
     }
-    setAddressLoading(true)
-    try {
-      const addressString = [
-        address.street,
-        address.city,
-        address.county,
-        address.postal_code,
-        address.country
-      ].filter(Boolean).join(', ')
-      
-      await updateBuyerProfile({ address: addressString })
-      toast.success("Adresă salvată cu succes!")
-    } catch (err) {
-      toast.error("Eroare la salvare", {
-        description: err instanceof Error ? err.message : "Încearcă din nou.",
-      })
-    } finally {
-      setAddressLoading(false)
-    }
+    const saved = saveAddress({ name: newName.trim(), address: newAddress.trim() })
+    setAddresses(getAddresses())
+    setNewName("")
+    setNewAddress("")
+    setAddingAddress(false)
+    toast.success("✓ Adresă adăugată", { description: `"${saved.name}" a fost salvată.`, duration: 2000 })
+  }
+
+  const handleDeleteAddress = (id: string, name: string) => {
+    deleteAddress(id)
+    setAddresses(getAddresses())
+    toast.success("🗑️ Adresă ștearsă", { description: `"${name}" a fost eliminată.`, duration: 2000 })
   }
 
   const handleSavePreferences = async (e: React.FormEvent) => {
@@ -163,9 +129,7 @@ export default function BuyerProfilePage() {
       })
       toast.success("Preferințe salvate cu succes!")
     } catch (err) {
-      toast.error("Eroare la salvare", {
-        description: err instanceof Error ? err.message : "Încearcă din nou.",
-      })
+      toast.error("Eroare la salvare", { description: err instanceof Error ? err.message : "Încearcă din nou." })
     } finally {
       setPrefsLoading(false)
     }
@@ -173,39 +137,7 @@ export default function BuyerProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      
-      <header className="bg-slate-900 text-white sticky top-0 z-50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" className="md:hidden text-white" onClick={() => setSidebarOpen(!sidebarOpen)}>
-                <Menu className="w-5 h-5" />
-              </Button>
-              <Link href="/">
-                <div className="text-xl font-bold cursor-pointer">
-                  <span className="text-orange-500">Shop</span>
-                  <span className="text-white">Verse</span>
-                </div>
-              </Link>
-            </div>
-            <div className="flex-1 max-w-2xl mx-4">
-              <div className="relative">
-                <Input placeholder="Cauta produse..." className="w-full pl-4 pr-12 py-2 rounded-md border-orange-500 text-slate-900" />
-                <Button size="sm" className="absolute right-1 top-1 bg-orange-500 text-white">
-                  <Search className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-            <div className="flex items-center">
-              <Link href="/" onClick={handleLogout}>
-                <Button variant="outline" size="sm" className="border-red-500 text-red-500 hover:bg-orange-500 hover:text-white">
-                  <LogOut className="w-4 h-4 mr-2" />Deconectare
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         <div className="flex items-center gap-3 mb-8">
@@ -223,22 +155,29 @@ export default function BuyerProfilePage() {
             <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
           </div>
         ) : (
-          <Tabs defaultValue="personal">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
+          <Tabs defaultValue={defaultTab}>
+            <TabsList className="grid w-full grid-cols-4 mb-6">
               <TabsTrigger value="personal" className="flex items-center gap-2">
                 <User className="w-4 h-4" />
-                Date personale
+                <span className="hidden sm:inline">Date personale</span>
+                <span className="sm:hidden">Date</span>
               </TabsTrigger>
               <TabsTrigger value="address" className="flex items-center gap-2">
                 <MapPin className="w-4 h-4" />
-                Agenda de adrese
+                <span>Adrese</span>
+              </TabsTrigger>
+              <TabsTrigger value="orders" className="flex items-center gap-2">
+                <Package className="w-4 h-4" />
+                <span>Comenzi</span>
               </TabsTrigger>
               <TabsTrigger value="preferences" className="flex items-center gap-2">
                 <Settings className="w-4 h-4" />
-                Preferințe
+                <span className="hidden sm:inline">Preferințe</span>
+                <span className="sm:hidden">Prefs</span>
               </TabsTrigger>
             </TabsList>
 
+            {/*  Date personale  */}
             <TabsContent value="personal">
               <Card className="border border-gray-200 shadow-sm">
                 <CardHeader>
@@ -249,142 +188,112 @@ export default function BuyerProfilePage() {
                   <form onSubmit={handleSavePersonal} className="space-y-5">
                     <div className="space-y-2">
                       <Label htmlFor="full_name">Nume complet</Label>
-                      <Input
-                        id="full_name"
-                        placeholder="Ion Popescu"
-                        value={personal.full_name}
+                      <Input id="full_name" placeholder="Ion Popescu" value={personal.full_name}
                         onChange={(e) => setPersonal({ ...personal, full_name: e.target.value })}
-                        disabled={personalLoading}
-                        className="border-gray-300 focus:border-orange-500 focus:ring-orange-500"
-                      />
+                        disabled={personalLoading} className="border-gray-300 focus:border-orange-500" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="email">
-                        Email <span className="text-gray-400 text-xs">(doar vizualizare)</span>
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={personal.email}
-                        disabled
-                        className="border-gray-200 bg-gray-50 text-gray-500"
-                      />
+                      <Label htmlFor="email">Email <span className="text-gray-400 text-xs">(doar vizualizare)</span></Label>
+                      <Input id="email" type="email" value={personal.email} disabled className="bg-gray-50 text-gray-500" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="phone">
-                        Telefon <span className="text-gray-400 text-xs">(opțional)</span>
-                      </Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="07xx xxx xxx"
-                        value={personal.phone}
+                      <Label htmlFor="phone">Telefon <span className="text-gray-400 text-xs">(opțional)</span></Label>
+                      <Input id="phone" type="tel" placeholder="07xx xxx xxx" value={personal.phone}
                         onChange={(e) => setPersonal({ ...personal, phone: e.target.value })}
-                        disabled={personalLoading}
-                        className="border-gray-300 focus:border-orange-500 focus:ring-orange-500"
-                      />
+                        disabled={personalLoading} className="border-gray-300 focus:border-orange-500" />
                     </div>
                     <Separator />
-                    <Button
-                      type="submit"
-                      className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-                      disabled={personalLoading}
-                    >
-                      {personalLoading ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Se salvează...</>
-                      ) : (
-                        <><Save className="w-4 h-4 mr-2" />Salvează datele personale</>
-                      )}
+                    <Button type="submit" className="w-full bg-orange-500 hover:bg-orange-600 text-white" disabled={personalLoading}>
+                      {personalLoading
+                        ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Se salvează...</>
+                        : <><Save className="w-4 h-4 mr-2" />Salvează datele personale</>}
                     </Button>
                   </form>
                 </CardContent>
               </Card>
             </TabsContent>
 
+            {/*  Agenda de adrese  */}
             <TabsContent value="address">
               <Card className="border border-gray-200 shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-slate-900">Agenda de adrese</CardTitle>
-                  <CardDescription>Adresa ta principală de livrare.</CardDescription>
+                  <CardDescription>Adresele tale salvate pentru livrare. Le poți selecta rapid la checkout.</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSaveAddress} className="space-y-5">
-                    <div className="space-y-2">
-                      <Label htmlFor="street">Stradă și număr</Label>
-                      <Input
-                        id="street"
-                        placeholder="Strada Memorandumului 12"
-                        value={address.street}
-                        onChange={(e) => setAddress({ ...address, street: e.target.value })}
-                        disabled={addressLoading}
-                        className="border-gray-300 focus:border-orange-500 focus:ring-orange-500"
-                      />
+                <CardContent className="space-y-4">
+                  {addresses.length === 0 && !addingAddress && (
+                    <div className="text-center py-8 text-gray-400">
+                      <MapPin className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">Nu ai adrese salvate încă.</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="city">Oraș</Label>
-                        <Input
-                          id="city"
-                          placeholder="Cluj-Napoca"
-                          value={address.city}
-                          onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                          disabled={addressLoading}
-                          className="border-gray-300 focus:border-orange-500 focus:ring-orange-500"
-                        />
+                  )}
+
+                  {addresses.map((addr) => (
+                    <div key={addr.id} className="flex items-start justify-between gap-3 p-4 border border-gray-200 rounded-lg bg-white">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-900 text-sm">{addr.name}</p>
+                        <p className="text-gray-500 text-sm mt-0.5">{addr.address}</p>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="county">Județ</Label>
-                        <Input
-                          id="county"
-                          placeholder="Cluj"
-                          value={address.county}
-                          onChange={(e) => setAddress({ ...address, county: e.target.value })}
-                          disabled={addressLoading}
-                          className="border-gray-300 focus:border-orange-500 focus:ring-orange-500"
-                        />
-                      </div>
+                      <Button variant="ghost" size="sm"
+                        onClick={() => handleDeleteAddress(addr.id, addr.name)}
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50 shrink-0">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="postal_code">Cod poștal</Label>
-                        <Input
-                          id="postal_code"
-                          placeholder="400000"
-                          value={address.postal_code}
-                          onChange={(e) => setAddress({ ...address, postal_code: e.target.value })}
-                          disabled={addressLoading}
-                          className="border-gray-300 focus:border-orange-500 focus:ring-orange-500"
-                        />
+                  ))}
+
+                  {addingAddress ? (
+                    <form onSubmit={handleAddAddress} className="border border-orange-200 rounded-lg p-4 bg-orange-50 space-y-3">
+                      <p className="text-sm font-semibold text-slate-900">Adresă nouă</p>
+                      <div className="space-y-1">
+                        <Label htmlFor="addr-name" className="text-xs text-gray-600">Nume adresă (ex: Acasă, Birou)</Label>
+                        <Input id="addr-name" placeholder="Acasă" value={newName}
+                          onChange={(e) => setNewName(e.target.value)}
+                          className="border-gray-300 focus:border-orange-500 bg-white" autoFocus />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="country">Țară</Label>
-                        <Input
-                          id="country"
-                          placeholder="Romania"
-                          value={address.country}
-                          onChange={(e) => setAddress({ ...address, country: e.target.value })}
-                          disabled={addressLoading}
-                          className="border-gray-300 focus:border-orange-500 focus:ring-orange-500"
-                        />
+                      <div className="space-y-1">
+                        <Label htmlFor="addr-value" className="text-xs text-gray-600">Adresă completă</Label>
+                        <Input id="addr-value" placeholder="Str. Victoriei 10, Cluj-Napoca, Cluj"
+                          value={newAddress} onChange={(e) => setNewAddress(e.target.value)}
+                          className="border-gray-300 focus:border-orange-500 bg-white" />
                       </div>
-                    </div>
-                    <Separator />
-                    <Button
-                      type="submit"
-                      className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-                      disabled={addressLoading}
-                    >
-                      {addressLoading ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Se salvează...</>
-                      ) : (
-                        <><Save className="w-4 h-4 mr-2" />Salvează adresa</>
-                      )}
+                      <div className="flex gap-2 pt-1">
+                        <Button type="submit" size="sm" className="bg-orange-500 hover:bg-orange-600 text-white">
+                          <Save className="w-4 h-4 mr-1" /> Salvează
+                        </Button>
+                        <Button type="button" size="sm" variant="outline"
+                          onClick={() => { setAddingAddress(false); setNewName(""); setNewAddress("") }}>
+                          Anulează
+                        </Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <Button variant="outline" className="w-full border-orange-500 text-orange-600 hover:bg-orange-50"
+                      onClick={() => setAddingAddress(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Adaugă adresă nouă
                     </Button>
-                  </form>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
 
+            {/*  Comenzi  */}
+            <TabsContent value="orders">
+              <Card className="border border-gray-200 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-slate-900 flex items-center gap-2">
+                    <Package className="w-5 h-5 text-orange-500" />
+                    Istoricul comenzilor
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <OrdersList />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/*  Preferințe  */}
             <TabsContent value="preferences">
               <Card className="border border-gray-200 shadow-sm">
                 <CardHeader>
@@ -394,72 +303,41 @@ export default function BuyerProfilePage() {
                 <CardContent>
                   <form onSubmit={handleSavePreferences} className="space-y-6">
                     <div>
-                      <Label className="text-sm font-medium text-slate-800 mb-3 block">
-                        Categorii favorite
-                      </Label>
+                      <Label className="text-sm font-medium text-slate-800 mb-3 block">Categorii favorite</Label>
                       <div className="grid grid-cols-2 gap-2">
-                        {STATIC_CATEGORIES.map((cat) => (
+                        {categories.map((cat) => (
                           <div key={cat.id} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={cat.id}
-                              checked={selectedCategoryIds.includes(cat.id)}
-                              onCheckedChange={(checked) =>
-                                handleCategoryChange(cat.id, checked as boolean)
-                              }
-                              disabled={prefsLoading}
-                            />
-                            <label htmlFor={cat.id} className="text-sm text-slate-700 cursor-pointer">
-                              {cat.name}
-                            </label>
+                            <Checkbox id={`cat-${cat.id}`} checked={selectedCategoryIds.includes(cat.id)}
+                              onCheckedChange={(checked) => handleCategoryChange(cat.id, checked as boolean)}
+                              disabled={prefsLoading} />
+                            <label htmlFor={`cat-${cat.id}`} className="text-sm text-slate-700 cursor-pointer">{cat.name}</label>
                           </div>
                         ))}
                       </div>
                     </div>
                     <Separator />
                     <div>
-                      <Label className="text-sm font-medium text-slate-800 mb-3 block">
-                        Interval de preț preferat
-                      </Label>
+                      <Label className="text-sm font-medium text-slate-800 mb-3 block">Interval de preț preferat</Label>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="price_min" className="text-xs text-gray-500">Preț minim (RON)</Label>
-                          <Input
-                            id="price_min"
-                            type="number"
-                            min={0}
-                            max={priceRange[1]}
-                            value={priceRange[0]}
+                          <Input id="price_min" type="number" min={0} max={priceRange[1]} value={priceRange[0]}
                             onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
-                            disabled={prefsLoading}
-                            className="border-gray-300 focus:border-orange-500 focus:ring-orange-500"
-                          />
+                            disabled={prefsLoading} className="border-gray-300 focus:border-orange-500" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="price_max" className="text-xs text-gray-500">Preț maxim (RON)</Label>
-                          <Input
-                            id="price_max"
-                            type="number"
-                            min={priceRange[0]}
-                            max={50000}
-                            value={priceRange[1]}
+                          <Input id="price_max" type="number" min={priceRange[0]} max={50000} value={priceRange[1]}
                             onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
-                            disabled={prefsLoading}
-                            className="border-gray-300 focus:border-orange-500 focus:ring-orange-500"
-                          />
+                            disabled={prefsLoading} className="border-gray-300 focus:border-orange-500" />
                         </div>
                       </div>
                     </div>
                     <Separator />
-                    <Button
-                      type="submit"
-                      className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-                      disabled={prefsLoading}
-                    >
-                      {prefsLoading ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Se salvează...</>
-                      ) : (
-                        <><Save className="w-4 h-4 mr-2" />Salvează preferințele</>
-                      )}
+                    <Button type="submit" className="w-full bg-orange-500 hover:bg-orange-600 text-white" disabled={prefsLoading}>
+                      {prefsLoading
+                        ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Se salvează...</>
+                        : <><Save className="w-4 h-4 mr-2" />Salvează preferințele</>}
                     </Button>
                   </form>
                 </CardContent>
