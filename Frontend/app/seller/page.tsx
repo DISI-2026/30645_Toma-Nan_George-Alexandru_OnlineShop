@@ -1,6 +1,7 @@
 "use client"
 
-import React, { useState, useRef, useEffect } from "react"
+import React, { useEffect, useState, useRef } from "react"
+
 import Link from "next/link"
 import { Search, ShoppingCart, User, Menu, Phone, Mail, FileText, Calendar, Package, ShoppingBag, Plus, LogOut, X, Camera, Edit, PackagePlus, Upload, Eye } from "lucide-react"
 
@@ -16,101 +17,121 @@ import ViewProductModal from "@/components/seller/modals/ViewProductModal"
 import AddProductModal from "@/components/seller/modals/AddProductModal"
 import EditProfileModal from "@/components/seller/modals/EditProfileModal"
 import EditProductModal from "@/components/seller/modals/EditProductModal"
+import {
+  createSellerProfile,
+  getSellerProfile,
+  toBackendMediaUrl,
+  updateSellerProfile,
+  type SellerProfile,
+  getSellerCategories, type Category 
+} from "@/lib/api/seller"
 
-import { getSellerProfile, createSellerProfile, updateSellerProfile, createProduct, getCategories } from "@/lib/api/seller"
-           
+import { createProduct } from "@/lib/api/products"
+
+interface SellerInfo {
+  company_name: string
+  created_at: string
+  phone: string
+  address: string
+  tax_id: string
+  description: string
+  logo_path: string
+}
+
+const EMPTY_SELLER_INFO: SellerInfo = {
+  company_name: "",
+  created_at: "",
+  phone: "",
+  address: "",
+  tax_id: "",
+  description: "",
+  logo_path: "",
+}
+
+function formatDate(value: string): string {
+  return new Date(value).toLocaleDateString("ro-RO", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  })
+}
+
+function mapSellerProfile(profile: SellerProfile): SellerInfo {
+  return {
+    company_name: profile.company_name,
+    created_at: formatDate(profile.member_since),
+    phone: profile.phone ?? "",
+    address: profile.address ?? "",
+    tax_id: profile.tax_id ?? "",
+    description: profile.description ?? "",
+    logo_path: toBackendMediaUrl(profile.logo_url),
+  }
+}
 
 export default function SellerProfilePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("products")  //sectiunea de taburi se deschide automat cu cea de products
 
-  //mock data pentru contul de seller
-  // const [sellerInfo, setSellerInfo] = useState({
-  //   company_name: "TechGear Pro Solutions S.R.L.",
-  //   created_at: "12 Octombrie 2023, 10:30:45",
-  //   phone: "+40 722 123 456",
-  //   address: "contact@techgear-pro.ro",
-  //   tax_id: "RO123456789",
-  //   description: "Suntem lideri in distributia de accesorii tech premium. Ne dedicam calitatii si satisfactiei clientilor nostri prin oferirea celor mai noi tehnologii de pe piata.",
-  //   logo_path: ""
-  // })
-
-  //data from api
-  const [sellerInfo, setSellerInfo] = useState({
-    company_name: "",
-    created_at: "",
-    phone: "",
-    address: "",
-    tax_id: "",
-    description: "",
-    logo_path: ""
-  })
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchSellerProfile = async () => {
-      try {
-        let response = await getSellerProfile()
-
-        if (response.status === 404) {
-          response = await createSellerProfile()
-        }
-
-        if (!response.ok) throw new Error("Failed to fetch profile")
-
-        const data = await response.json()
-
-        setSellerInfo({
-          company_name: data.company_name ?? "",
-          created_at:   data.member_since ?? "",
-          phone:        data.phone       ?? "",
-          address:      data.email     ?? "",
-          tax_id:       data.tax_id      ?? "",
-          description:  data.description ?? "",
-          logo_path:    data.logo_url        ?? "",
-        })
-      } catch (error) {
-        console.error("Error fetching seller profile:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchSellerProfile()
-  }, [])
+  const [sellerInfo, setSellerInfo] = useState<SellerInfo>(EMPTY_SELLER_INFO)
+  const [profileExists, setProfileExists] = useState(false)
+  const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null)
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
 
   //boolean pt pop up de edit seller info
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [formData, setFormData] = useState(sellerInfo)
+  const [formData, setFormData] = useState<SellerInfo>(sellerInfo)
+
   useEffect(() => {
-    setFormData(sellerInfo)
-  }, [sellerInfo])
+    getSellerProfile()
+      .then((profile) => {
+        const mappedProfile = mapSellerProfile(profile)
+        setSellerInfo(mappedProfile)
+        setFormData(mappedProfile)
+        setProfileExists(true)
+      })
+      .catch((error) => {
+        console.error(error)
+        setProfileExists(false)
+      })
+  }, [])
 
   //afisez datele mock de mai sus
   const handleOpenEdit = () => {
-  setFormData(sellerInfo)
-  setLogoFile(null)  // Resetează logo file când deschizi modalul
-  setIsEditModalOpen(true)
-}
+    setFormData(sellerInfo) 
+    setSelectedLogoFile(null)
+    setIsEditModalOpen(true)
+  }
 
   ////////// EDIT SELLER PROFILE //////////
-  // const handleSaveProfile = () => {
-  //   const today = new Date().toLocaleDateString('ro-RO', { 
-  //     day: 'numeric', 
-  //     month: 'long', 
-  //     year: 'numeric',
-  //     hour: '2-digit',
-  //     minute: '2-digit',
-  //     second: '2-digit' 
-  //   })
+  const handleSaveProfile = async () => {
+    try {
+      setIsSavingProfile(true)
+      const payload = {
+        company_name: formData.company_name,
+        description: formData.description,
+        phone: formData.phone,
+        address: formData.address,
+        tax_id: formData.tax_id,
+      }
+      const savedProfile = profileExists
+        ? await updateSellerProfile(payload, selectedLogoFile)
+        : await createSellerProfile(payload, selectedLogoFile)
 
-  //   setSellerInfo({
-  //     ...formData,
-  //     created_at: today
-  //   })
-    
-  //   setIsEditModalOpen(false)
-  // }
+      const mappedProfile = mapSellerProfile(savedProfile)
+      setSellerInfo(mappedProfile)
+      setFormData(mappedProfile)
+      setSelectedLogoFile(null)
+      setProfileExists(true)
+      setIsEditModalOpen(false)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Nu am putut salva profilul.")
+    } finally {
+      setIsSavingProfile(false)
+    }
+  }
   
   // Adaugă un state pentru a păstra File object-ul
   const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -118,10 +139,9 @@ export default function SellerProfilePage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      // Salvează File object-ul pentru upload
-      setLogoFile(file)
-      
-      // Creează preview pentru UI
+
+      setSelectedLogoFile(file)
+
       const reader = new FileReader()
       reader.onloadend = () => {
         setFormData(prev => ({ ...prev, logo_path: reader.result as string }))
@@ -130,50 +150,6 @@ export default function SellerProfilePage() {
     }
   }
 
-  const handleSaveProfile = async () => {
-    console.log("formData on save:", formData)
-    try {
-      const body: Record<string, string | null | File> = {}
-      
-      if (formData.company_name) body.company_name = formData.company_name
-      if (formData.phone) body.phone = formData.phone
-      if (formData.address) body.address = formData.address  
-      if (formData.tax_id) body.tax_id = formData.tax_id
-      if (formData.description) body.description = formData.description
-      
-      if (logoFile) {
-        body.logo = logoFile
-      }
-          
-      console.log("body being sent:", body)  
-
-      const response = await updateSellerProfile(body)
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error("Error response:", errorData)
-        throw new Error("Failed to save profile")
-      }
-
-      const updated = await response.json()
-      console.log("Updated profile response:", updated)
-
-      setSellerInfo({
-        company_name: updated.company_name ?? "",
-        created_at:   updated.member_since ?? "",
-        phone:        updated.phone        ?? "",
-        address:      updated.address      ?? "",  
-        tax_id:       updated.tax_id       ?? "",
-        description:  updated.description  ?? "",
-        logo_path:    updated.logo_url     ?? "",
-      })
-
-      setIsEditModalOpen(false)
-    } catch (error) {
-      console.error("Error saving profile:", error)
-      alert("Eroare la salvarea profilului. Încearcă din nou.")
-    }
-  }
-  
   //restul datelor despre seller
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -193,33 +169,28 @@ export default function SellerProfilePage() {
   const [isSavingProduct, setIsSavingProduct] = useState(false)
 
   
-  useEffect(() => {
-    const fetchCategories = async () => {
-      setIsLoadingCategories(true)
-      try {
-        const response = await getCategories()
-        
-        if (!response.ok) {
-          const errorData = await response.json()
-          console.error("Error fetching categories:", errorData)
-          throw new Error("Failed to fetch categories")
-        }
-        
-        const data = await response.json()
-        console.log("Categories response:", data) // Pentru debugging
-        
-        // Backend returnează { items: [...], page, page_size, total }
-        setCategories(data.items || [])
-      } catch (error) {
-        console.error("Error fetching categories:", error)
-        alert("Eroare la încărcarea categoriilor. Verifică consola pentru detalii.")
-      } finally {
-        setIsLoadingCategories(false)
-      }
-    }
+useEffect(() => {
+  // Încarcă profilul seller
+  getSellerProfile()
+    .then((profile) => {
+      const mappedProfile = mapSellerProfile(profile)
+      setSellerInfo(mappedProfile)
+      setFormData(mappedProfile)
+      setProfileExists(true)
+    })
+    .catch((error) => {
+      console.error(error)
+      setProfileExists(false)
+    })
 
-    fetchCategories()
-  }, [])
+  // Încarcă categoriile
+  getSellerCategories()
+    .then(setCategories)
+    .catch((error) => {
+      console.error("Eroare la încărcarea categoriilor:", error)
+    })
+}, [])
+
 
 
   //adaugare imagini pentru produse
@@ -258,92 +229,55 @@ export default function SellerProfilePage() {
 
   //adaugare de produs nou la tabel
   const handleSaveNewProduct = async () => {
-      if (!newProduct.title.trim()) {
-      alert("Titlul produsului este obligatoriu!")
+  try {
+    // Validare de bază
+    if (!newProduct.title.trim()) {
+      alert("Titlul produsului este obligatoriu.")
       return
     }
-    
-    if (!newProduct.description.trim() || newProduct.description.trim().length < 10) {
-      alert("Descrierea trebuie să aibă cel puțin 10 caractere!")
+    if (!newProduct.description.trim()) {
+      alert("Descrierea produsului este obligatorie.")
       return
     }
-    
-    if (!newProduct.category_id || newProduct.category_id === 0) {
-      alert("Selectează o categorie!")
+    if (!newProduct.category_id) {
+      alert("Selectează o categorie.")
       return
     }
-    
-    const price = parseFloat(newProduct.price)
-    if (isNaN(price) || price <= 0) {
-      alert("Prețul trebuie să fie un număr pozitiv!")
+    if (!newProduct.price || parseFloat(newProduct.price) <= 0) {
+      alert("Prețul trebuie să fie mai mare decât 0.")
       return
     }
-    
-    const stock = parseInt(newProduct.stock)
-    if (isNaN(stock) || stock < 0) {
-      alert("Stocul trebuie să fie un număr pozitiv sau 0!")
-      return
-    }
-    
-    if (images.length === 0) {
-      alert("Adaugă cel puțin o imagine pentru produs!")
+    if (!newProduct.stock || parseInt(newProduct.stock) < 0) {
+      alert("Stocul trebuie să fie un număr pozitiv.")
       return
     }
 
-    setIsSavingProduct(true)
+    // Trimite la backend
+    const createdProduct = await createProduct(
+      {
+        title: newProduct.title,
+        description: newProduct.description,
+        price: newProduct.price,
+        stock: newProduct.stock,
+        category_id: newProduct.category_id,
+      },
+      images
+    )
+
+    // Adaugă produsul în lista locală pentru afișare
+    setProductsList(prev => [...prev, createdProduct])
     
-    try {
-      const imagesMetadata = images.map((_, index) => ({
-        display_order: index,
-        is_thumbnail: index === 0 // prima imagine = thumbnail
-      }))
-
-      const response = await createProduct(
-        newProduct.title.trim(),
-        newProduct.description.trim(),
-        price,
-        stock,
-        newProduct.category_id,
-        images,
-        imagesMetadata
-      )
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error("Error response:", errorData)
-        throw new Error(errorData.detail || "Failed to create product")
-      }
-
-      const createdProduct = await response.json()
-      console.log("Product created:", createdProduct)
-
-      const productToAdd = {
-        id: createdProduct.id,
-        title: createdProduct.title,
-        category: categories.find(c => c.id === createdProduct.category_id)?.name || "Nespecificat",
-        price: createdProduct.price.toString(),
-        stock: createdProduct.stock.toString(),
-        description: createdProduct.description || "",
-        images: createdProduct.images.map((img: any) => `http://localhost:8000${img.path}`),
-        slug: createdProduct.slug,
-        is_available: createdProduct.is_available,
-      }
-
-      setProductsList(prev => [...prev, productToAdd])
-      
-      // Resetează formularul
-      setIsAddProductModalOpen(false)
-      setNewProduct({ title: "", category_id: 0, price: "", stock: "", description: "" })
-      setImages([])
-      
-      alert("Produsul a fost adăugat cu succes!")
-    } catch (error) {
-      console.error("Error creating product:", error)
-      alert(`Eroare la adăugarea produsului: ${error instanceof Error ? error.message : "Eroare necunoscută"}`)
-    } finally {
-      setIsSavingProduct(false)
-    }
+    // Resetează formularul
+    setIsAddProductModalOpen(false)
+    setNewProduct({ title: "", category_id: 0, price: "", stock: "", description: "" })
+    setImages([])
+    
+    alert("Produsul a fost creat cu succes!")
+  } catch (error) {
+    alert(error instanceof Error ? error.message : "Eroare la crearea produsului.")
   }
+}
+
 
   //adaugare produs
   const handleAddProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -561,6 +495,7 @@ export default function SellerProfilePage() {
           onSave={handleSaveProfile}
           onInputChange={handleInputChange}
           onImageUpload={handleImageUpload}
+          isSaving={isSavingProfile}
         />
       )}
 
