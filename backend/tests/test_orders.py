@@ -225,6 +225,63 @@ async def test_list_seller_orders_scopes_and_filters(client: AsyncClient, sessio
 
 
 @pytest.mark.asyncio
+async def test_list_buyer_orders_scopes_and_filters(client: AsyncClient, session_factory):
+    ids = await seed_order_graph(session_factory)
+    cookies = auth_cookies(ids["buyer_user_id"], "buyer")
+
+    response = await client.get("/api/v1/orders", cookies=cookies)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["pagination"]["page"] == 1
+    assert payload["pagination"]["page_size"] == 20
+    assert payload["pagination"]["total_items"] == 2
+    assert payload["pagination"]["total_pages"] == 1
+    assert {item["id"] for item in payload["data"]} == {
+        ids["seller_order_id"],
+        ids["other_seller_order_id"],
+    }
+    first_item = payload["data"][0]
+    assert "seller" in first_item
+    assert first_item["item_count"] >= 1
+    assert "updated_at" in first_item
+
+    filtered = await client.get(
+        "/api/v1/orders",
+        cookies=cookies,
+        params={"status": "placed"},
+    )
+    assert filtered.status_code == 200
+    filtered_payload = filtered.json()
+    assert filtered_payload["pagination"]["total_items"] == 1
+    assert filtered_payload["data"][0]["id"] == ids["seller_order_id"]
+
+
+@pytest.mark.asyncio
+async def test_list_buyer_orders_pagination_and_role_restriction(client: AsyncClient, session_factory):
+    ids = await seed_order_graph(session_factory)
+
+    paged_response = await client.get(
+        "/api/v1/orders",
+        cookies=auth_cookies(ids["buyer_user_id"], "buyer"),
+        params={"page": 2, "page_size": 1},
+    )
+    assert paged_response.status_code == 200
+    paged_payload = paged_response.json()
+    assert paged_payload["pagination"]["page"] == 2
+    assert paged_payload["pagination"]["page_size"] == 1
+    assert paged_payload["pagination"]["total_items"] == 2
+    assert paged_payload["pagination"]["total_pages"] == 2
+    assert len(paged_payload["data"]) == 1
+
+    seller_forbidden = await client.get(
+        "/api/v1/orders",
+        cookies=auth_cookies(ids["seller_user_id"], "seller"),
+    )
+    assert seller_forbidden.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_list_seller_orders_pagination_defaults_work(client: AsyncClient, session_factory):
     ids = await seed_order_graph(session_factory)
     cookies = auth_cookies(ids["seller_user_id"], "seller")
@@ -254,6 +311,8 @@ async def test_get_order_details_allows_authorized_seller_and_buyer(client: Asyn
     assert seller_response.status_code == 200
     seller_payload = seller_response.json()
     assert seller_payload["id"] == ids["seller_order_id"]
+    assert seller_payload["seller"]["company_name"] == "Seller One"
+    assert seller_payload["buyer"]["email"] == "buyer@example.com"
     assert seller_payload["status_history"][0]["status"] == "placed"
     assert seller_payload["items"][0]["subtotal"] == "200.00"
 
