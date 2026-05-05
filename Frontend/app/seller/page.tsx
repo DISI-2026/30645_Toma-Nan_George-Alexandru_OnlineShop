@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState, useRef } from "react"
+
 import Link from "next/link"
 import { Search, ShoppingCart, User, Menu, Phone, Mail, FileText, Calendar, Package, ShoppingBag, Plus, LogOut, X, Camera, Edit, PackagePlus, Upload, Eye } from "lucide-react"
 
@@ -129,11 +130,15 @@ export default function SellerProfilePage() {
     }
   }
   
-  //incarc imaginea de profil a sellerului
+  // Adaugă un state pentru a păstra File object-ul
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+
       setSelectedLogoFile(file)
+
       const reader = new FileReader()
       reader.onloadend = () => {
         setFormData(prev => ({ ...prev, logo_path: reader.result as string }))
@@ -141,6 +146,7 @@ export default function SellerProfilePage() {
       reader.readAsDataURL(file)
     }
   }
+
   //restul datelor despre seller
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
