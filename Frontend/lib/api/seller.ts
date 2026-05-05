@@ -50,12 +50,45 @@ export const updateSellerProfile = async (body: Record<string, string | null | F
 
 
 // PRODUCTS 
-export const createProduct = async (body: Record<string, string>) => {
-  const res = await fetch(`${API_BASE}/api/v1/sellers/me/products`, {
-    method: "POST",
+export const createProduct = async (
+    title: string,
+    description: string,
+    price: number,
+    stock: number,
+    categoryId: number,
+    images: File[],
+    imagesMetadata?: Array<{ display_order: number; is_thumbnail: boolean }>
+  ) => {
+    const formData = new FormData()
+    
+    formData.append("title", title)
+    formData.append("description", description)
+    formData.append("price", price.toString())
+    formData.append("stock", stock.toString())
+    formData.append("category_id", categoryId.toString())
+    
+    // Adaugă imaginile
+    images.forEach((image) => {
+      formData.append("images", image)
+    })
+    
+    // Adaugă metadata pentru imagini (opțional)
+    if (imagesMetadata && imagesMetadata.length > 0) {
+      formData.append("images_metadata", JSON.stringify(imagesMetadata))
+    }
+
+    const res = await fetch(`${API_BASE}/api/v1/sellers/me/products`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    })
+    return res
+}
+
+export const getCategories = async () => {
+  const res = await fetch(`${API_BASE}/api/v1/categories?page=1&page_size=100`, {
     headers: getHeaders(),
     credentials: "include",
-    body: JSON.stringify(body),
   })
   return res
 }

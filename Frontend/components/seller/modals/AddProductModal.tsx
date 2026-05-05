@@ -12,15 +12,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface NewProduct {
   title: string
-  category: string
+  category_id: number
   price: string
   stock: string
   description: string
 }
 
+interface Category {
+  id: number
+  name: string
+}
+
 interface AddProductModalProps {
   newProduct: NewProduct
   images: File[]
+  categories: Category[]
+  isLoadingCategories: boolean
+  isSaving: boolean
   onClose: () => void
   onSave: () => void
   onProductChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void
@@ -32,6 +40,9 @@ interface AddProductModalProps {
 export default function AddProductModal({
   newProduct,
   images,
+  categories,
+  isLoadingCategories,
+  isSaving,
   onClose,
   onSave,
   onProductChange,
@@ -49,7 +60,7 @@ export default function AddProductModal({
             <PackagePlus className="w-6 h-6 text-orange-500" />
             <CardTitle className="text-2xl">Add New Product</CardTitle>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={onClose} disabled={isSaving}>
             <X className="w-6 h-6 text-slate-500" />
           </Button>
         </CardHeader>
@@ -59,10 +70,9 @@ export default function AddProductModal({
             {/* stanga - upload product images */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <Label className="text-xs font-semibold text-slate-500 uppercase">Product Images</Label>
-                {/* contor de imagini */}
-                <span className={`text-xs font-medium ${images.length >= 10 ? 'text-red-500' : 'text-slate-500'}`}>
-                  {images.length}/10
+                <Label className="text-xs font-semibold text-slate-500 uppercase">Product Images *</Label>
+                <span className={`text-xs font-medium ${images.length >= 10 ? 'text-red-500' : images.length === 0 ? 'text-orange-500' : 'text-slate-500'}`}>
+                  {images.length}/10 {images.length === 0 && "(minim 1)"}
                 </span>
               </div>
 
@@ -70,79 +80,146 @@ export default function AddProductModal({
               {images.length < 10 && (
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-slate-300 rounded-2xl aspect-square flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer group"
+                  className={`border-2 border-dashed rounded-2xl aspect-square flex flex-col items-center justify-center transition-colors cursor-pointer group ${
+                    images.length === 0 
+                      ? 'border-orange-300 bg-orange-50 hover:bg-orange-100' 
+                      : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+                  }`}
                 >
-                  <Upload className="w-12 h-12 text-slate-400 group-hover:text-orange-500 mb-4" />
+                  <Upload className={`w-12 h-12 mb-4 ${images.length === 0 ? 'text-orange-400 group-hover:text-orange-500' : 'text-slate-400 group-hover:text-orange-500'}`} />
                   <p className="text-slate-500 font-medium">Click to upload images</p>
                   <p className="text-xs text-slate-400 mt-1">Maxim 10 imagini (rămase: {10 - images.length})</p>
-                  <input type="file" ref={fileInputRef} onChange={onImageChange} multiple className="hidden" accept="image/*" />
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={onImageChange} 
+                    multiple 
+                    className="hidden" 
+                    accept="image/*"
+                    disabled={isSaving}
+                  />
                 </div>
               )}
 
-              {/* imaginile deja încărcate */}
-              <div className="grid grid-cols-4 gap-2">
-                {images.map((file, index) => (
-                  <div key={index} className="relative aspect-square rounded-lg overflow-hidden border">
-                    <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
-                    <button onClick={() => onRemoveImage(index)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 transition-colors">
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              {/* imaginile deja incarcate */}
+              {images.length > 0 && (
+                <div className="grid grid-cols-4 gap-2">
+                  {images.map((file, index) => (
+                    <div key={index} className="relative aspect-square rounded-lg overflow-hidden border">
+                      <img src={URL.createObjectURL(file)} alt="preview" className="w-full h-full object-cover" />
+                      {index === 0 && (
+                        <div className="absolute top-1 left-1 bg-orange-500 text-white text-xs px-2 py-1 rounded">
+                          Thumbnail
+                        </div>
+                      )}
+                      <button 
+                        onClick={() => onRemoveImage(index)} 
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 transition-colors"
+                        disabled={isSaving}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* dreapta - datele produsului */}
             <div className="space-y-6">
               <div className="space-y-2">
-                <Label>Product Title</Label>
-                <Input name="title" value={newProduct.title} onChange={onProductChange} placeholder="Enter product name" />
+                <Label>Product Title *</Label>
+                <Input 
+                  name="title" 
+                  value={newProduct.title} 
+                  onChange={onProductChange} 
+                  placeholder="Enter product name (min 3 caractere)" 
+                  disabled={isSaving}
+                  required
+                />
               </div>
-              {/* de modificat vedem cum */}
+
               <div className="space-y-2">
-                <Label>Category</Label>
-                <Select onValueChange={onCategoryChange}>
-                  <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
+                <Label>Category *</Label>
+                <Select 
+                  onValueChange={onCategoryChange} 
+                  value={newProduct.category_id > 0 ? newProduct.category_id.toString() : undefined}
+                  disabled={isLoadingCategories || isSaving}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={isLoadingCategories ? "Loading categories..." : "Select a category"} />
+                  </SelectTrigger>
                   <SelectContent className="z-[100]">
-                    <SelectItem value="Electronice">Electronice</SelectItem>
-                    <SelectItem value="Imbracaminte">Imbracaminte</SelectItem>
-                    <SelectItem value="Casa & Gradina">Casa & Gradina</SelectItem>
-                    <SelectItem value="Sport">Sport</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Price (RON)</Label>
-                  <Input name="price" value={newProduct.price} onChange={onProductChange} type="number" placeholder="0.00" />
+                  <Label>Price (RON) *</Label>
+                  <Input 
+                    name="price" 
+                    value={newProduct.price} 
+                    onChange={onProductChange} 
+                    type="number" 
+                    step="0.01"
+                    min="0.01"
+                    placeholder="0.00" 
+                    disabled={isSaving}
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label>Stock</Label>
-                  <Input name="stock" value={newProduct.stock} onChange={onProductChange} type="number" placeholder="Quantity" />
+                  <Label>Stock *</Label>
+                  <Input 
+                    name="stock" 
+                    value={newProduct.stock} 
+                    onChange={onProductChange} 
+                    type="number" 
+                    min="0"
+                    placeholder="Quantity" 
+                    disabled={isSaving}
+                    required
+                  />
                 </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox id="available" className="data-[state=checked]:bg-orange-500" />
-                <Label htmlFor="available">Product is available for sale</Label>
               </div>
 
               <div className="space-y-2">
-                <Label>Product Description</Label>
+                <Label>Product Description *</Label>
                 <Textarea
                   name="description"
                   value={newProduct.description}
                   onChange={onProductChange}
-                  placeholder="Describe your product..."
+                  placeholder="Describe your product... (min 10 caractere)"
                   className="min-h-[120px]"
+                  disabled={isSaving}
+                  required
                 />
+                <p className="text-xs text-slate-400">
+                  {newProduct.description.length}/5000 caractere
+                </p>
               </div>
 
               <div className="flex gap-4 pt-4">
-                <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-                <Button className="flex-[2] bg-orange-500 hover:bg-orange-600 text-white" onClick={onSave}>
-                  Save and Publish
+                <Button 
+                  variant="outline" 
+                  className="flex-1" 
+                  onClick={onClose}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  className="flex-[2] bg-orange-500 hover:bg-orange-600 text-white" 
+                  onClick={onSave}
+                  disabled={isSaving}
+                >
+                  {isSaving ? "Saving..." : "Save and Publish"}
                 </Button>
               </div>
             </div>

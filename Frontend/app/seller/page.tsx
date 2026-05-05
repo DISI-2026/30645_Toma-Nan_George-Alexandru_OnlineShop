@@ -17,8 +17,8 @@ import AddProductModal from "@/components/seller/modals/AddProductModal"
 import EditProfileModal from "@/components/seller/modals/EditProfileModal"
 import EditProductModal from "@/components/seller/modals/EditProductModal"
 
-import { getSellerProfile, createSellerProfile, updateSellerProfile } from "@/lib/api/seller"
-
+import { getSellerProfile, createSellerProfile, updateSellerProfile, createProduct, getCategories } from "@/lib/api/seller"
+           
 
 export default function SellerProfilePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -188,6 +188,40 @@ export default function SellerProfilePage() {
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
+  const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([])
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false)
+  const [isSavingProduct, setIsSavingProduct] = useState(false)
+
+  
+  useEffect(() => {
+    const fetchCategories = async () => {
+      setIsLoadingCategories(true)
+      try {
+        const response = await getCategories()
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          console.error("Error fetching categories:", errorData)
+          throw new Error("Failed to fetch categories")
+        }
+        
+        const data = await response.json()
+        console.log("Categories response:", data) // Pentru debugging
+        
+        // Backend returnează { items: [...], page, page_size, total }
+        setCategories(data.items || [])
+      } catch (error) {
+        console.error("Error fetching categories:", error)
+        alert("Eroare la încărcarea categoriilor. Verifică consola pentru detalii.")
+      } finally {
+        setIsLoadingCategories(false)
+      }
+    }
+
+    fetchCategories()
+  }, [])
+
+
   //adaugare imagini pentru produse
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -219,42 +253,106 @@ export default function SellerProfilePage() {
   
   //sablon adaugare produs la tabel
   const [newProduct, setNewProduct] = useState({
-    title: "", category: "", price: "", stock: "", description: ""
+    title: "", category_id: 0, price: "", stock: "", description: ""
   })
-
-  //adaugare produs
-  const handleAddProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const { name, value } = e.target
-      setNewProduct(prev => ({ ...prev, [name]: value }))
-  }
 
   //adaugare de produs nou la tabel
   const handleSaveNewProduct = async () => {
-    const imageUrls = await Promise.all(
-      images.map(
-        (file) =>
-          new Promise<string>((resolve) => {
-            const reader = new FileReader()
-            reader.onloadend = () => resolve(reader.result as string)
-            reader.readAsDataURL(file)
-          })
-      )
-    )
-
-    const productToAdd = {
-      id: Date.now(),
-      title: newProduct.title || "Produs Fără Nume",
-      category: newProduct.category || "Nespecificat",
-      price: newProduct.price || "0.00",
-      stock: newProduct.stock || "0",
-      description: newProduct.description || "Nicio descriere adaugata",
-      images: imageUrls,
+      if (!newProduct.title.trim()) {
+      alert("Titlul produsului este obligatoriu!")
+      return
+    }
+    
+    if (!newProduct.description.trim() || newProduct.description.trim().length < 10) {
+      alert("Descrierea trebuie să aibă cel puțin 10 caractere!")
+      return
+    }
+    
+    if (!newProduct.category_id || newProduct.category_id === 0) {
+      alert("Selectează o categorie!")
+      return
+    }
+    
+    const price = parseFloat(newProduct.price)
+    if (isNaN(price) || price <= 0) {
+      alert("Prețul trebuie să fie un număr pozitiv!")
+      return
+    }
+    
+    const stock = parseInt(newProduct.stock)
+    if (isNaN(stock) || stock < 0) {
+      alert("Stocul trebuie să fie un număr pozitiv sau 0!")
+      return
+    }
+    
+    if (images.length === 0) {
+      alert("Adaugă cel puțin o imagine pentru produs!")
+      return
     }
 
-    setProductsList(prev => [...prev, productToAdd])
-    setIsAddProductModalOpen(false)
-    setNewProduct({ title: "", category: "", price: "", stock: "", description: "" })
-    setImages([])
+    setIsSavingProduct(true)
+    
+    try {
+      const imagesMetadata = images.map((_, index) => ({
+        display_order: index,
+        is_thumbnail: index === 0 // prima imagine = thumbnail
+      }))
+
+      const response = await createProduct(
+        newProduct.title.trim(),
+        newProduct.description.trim(),
+        price,
+        stock,
+        newProduct.category_id,
+        images,
+        imagesMetadata
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Error response:", errorData)
+        throw new Error(errorData.detail || "Failed to create product")
+      }
+
+      const createdProduct = await response.json()
+      console.log("Product created:", createdProduct)
+
+      const productToAdd = {
+        id: createdProduct.id,
+        title: createdProduct.title,
+        category: categories.find(c => c.id === createdProduct.category_id)?.name || "Nespecificat",
+        price: createdProduct.price.toString(),
+        stock: createdProduct.stock.toString(),
+        description: createdProduct.description || "",
+        images: createdProduct.images.map((img: any) => `http://localhost:8000${img.path}`),
+        slug: createdProduct.slug,
+        is_available: createdProduct.is_available,
+      }
+
+      setProductsList(prev => [...prev, productToAdd])
+      
+      // Resetează formularul
+      setIsAddProductModalOpen(false)
+      setNewProduct({ title: "", category_id: 0, price: "", stock: "", description: "" })
+      setImages([])
+      
+      alert("Produsul a fost adăugat cu succes!")
+    } catch (error) {
+      console.error("Error creating product:", error)
+      alert(`Eroare la adăugarea produsului: ${error instanceof Error ? error.message : "Eroare necunoscută"}`)
+    } finally {
+      setIsSavingProduct(false)
+    }
+  }
+
+  //adaugare produs
+  const handleAddProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setNewProduct(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleCategoryChange = (categoryId: string) => {
+    setNewProduct(prev => ({ ...prev, category_id: parseInt(categoryId) }))
   }
 
   //functie de vizualizare detalii produse
@@ -470,10 +568,17 @@ export default function SellerProfilePage() {
         <AddProductModal
           newProduct={newProduct}
           images={images}
-          onClose={() => setIsAddProductModalOpen(false)}
+          categories={categories}
+          isLoadingCategories={isLoadingCategories}
+          isSaving={isSavingProduct}
+          onClose={() => {
+            setIsAddProductModalOpen(false)
+            setNewProduct({ title: "", category_id: 0, price: "", stock: "", description: "" })
+            setImages([])
+          }}
           onSave={handleSaveNewProduct}
           onProductChange={handleAddProductChange}
-          onCategoryChange={(val) => setNewProduct(prev => ({ ...prev, category: val }))}
+          onCategoryChange={handleCategoryChange}
           onImageChange={handleImageChange}
           onRemoveImage={removeImage}
         />
