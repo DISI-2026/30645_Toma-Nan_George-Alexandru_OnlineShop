@@ -63,7 +63,7 @@ class Product(Base):
     )
 
     seller: Mapped[Seller] = relationship(back_populates="products")
-    category: Mapped[Category] = relationship(back_populates="products", index=True)
+    category: Mapped[Category] = relationship(back_populates="products")
     images: Mapped[list[ProductImage]] = relationship(
         back_populates="product",
         cascade="all, delete-orphan",
