@@ -41,6 +41,11 @@ from application.usecases.products import (
     SellerCategoryMismatchError,
     TooManyImagesError,
 )
+from application.usecases.reviews import (
+    ReviewNotFoundError,
+    ReviewNotOwnedBySellerError,
+    ReviewReplyAlreadyExistsError,
+)
 from application.usecases.orders import (
     BuyerProfileNotFoundError,
     CartEmptyError,
@@ -153,7 +158,12 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=str(exc),
                     ) from exc
-                except (ProductNotFoundError, SellerNotFoundError, CategoryNotFoundError) as exc:
+                except (
+                    ProductNotFoundError,
+                    SellerNotFoundError,
+                    CategoryNotFoundError,
+                    ReviewNotFoundError,
+                ) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=str(exc),
@@ -173,7 +183,17 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail=str(exc),
                     ) from exc
+                except ReviewNotOwnedBySellerError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=str(exc),
+                    ) from exc
                 except DuplicateSlugError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=str(exc),
+                    ) from exc
+                except ReviewReplyAlreadyExistsError as exc:
                     raise HTTPException(
                         status_code=status.HTTP_409_CONFLICT,
                         detail=str(exc),
@@ -289,7 +309,12 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=str(exc),
                 ) from exc
-            except (ProductNotFoundError, SellerNotFoundError, CategoryNotFoundError) as exc:
+            except (
+                ProductNotFoundError,
+                SellerNotFoundError,
+                CategoryNotFoundError,
+                ReviewNotFoundError,
+            ) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=str(exc),
@@ -323,7 +348,17 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=str(exc),
                 ) from exc
+            except ReviewNotOwnedBySellerError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=str(exc),
+                ) from exc
             except DuplicateSlugError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=str(exc),
+                ) from exc
+            except ReviewReplyAlreadyExistsError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=str(exc),

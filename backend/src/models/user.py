@@ -12,6 +12,7 @@ from .base import Base
 if TYPE_CHECKING:
     from .buyer import Buyer
     from .password_reset_token import PasswordResetToken
+    from .review import Review
     from .seller import Seller
 
 
@@ -54,6 +55,10 @@ class User(Base):
         cascade="all, delete-orphan",
     )
     password_reset_tokens: Mapped[list[PasswordResetToken]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    reviews: Mapped[list[Review]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
     )
