@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { Search, ShoppingCart, User, Menu, Phone, Mail, FileText, Calendar, Package, ShoppingBag, Plus, LogOut, X, Camera, Edit, PackagePlus, Upload, Eye } from "lucide-react"
 
@@ -17,54 +17,111 @@ import AddProductModal from "@/components/seller/modals/AddProductModal"
 import EditProfileModal from "@/components/seller/modals/EditProfileModal"
 import EditProductModal from "@/components/seller/modals/EditProductModal"
 
+import { getSellerProfile, createSellerProfile, updateSellerProfile } from "@/lib/api/seller"
+
+
 export default function SellerProfilePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("products")  //sectiunea de taburi se deschide automat cu cea de products
 
   //mock data pentru contul de seller
+  // const [sellerInfo, setSellerInfo] = useState({
+  //   company_name: "TechGear Pro Solutions S.R.L.",
+  //   created_at: "12 Octombrie 2023, 10:30:45",
+  //   phone: "+40 722 123 456",
+  //   address: "contact@techgear-pro.ro",
+  //   tax_id: "RO123456789",
+  //   description: "Suntem lideri in distributia de accesorii tech premium. Ne dedicam calitatii si satisfactiei clientilor nostri prin oferirea celor mai noi tehnologii de pe piata.",
+  //   logo_path: ""
+  // })
+
+  //data from api
   const [sellerInfo, setSellerInfo] = useState({
-    company_name: "TechGear Pro Solutions S.R.L.",
-    created_at: "12 Octombrie 2023, 10:30:45",
-    phone: "+40 722 123 456",
-    address: "contact@techgear-pro.ro",
-    tax_id: "RO123456789",
-    description: "Suntem lideri in distributia de accesorii tech premium. Ne dedicam calitatii si satisfactiei clientilor nostri prin oferirea celor mai noi tehnologii de pe piata.",
+    company_name: "",
+    created_at: "",
+    phone: "",
+    address: "",
+    tax_id: "",
+    description: "",
     logo_path: ""
   })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchSellerProfile = async () => {
+      try {
+        let response = await getSellerProfile()
+
+        if (response.status === 404) {
+          response = await createSellerProfile()
+        }
+
+        if (!response.ok) throw new Error("Failed to fetch profile")
+
+        const data = await response.json()
+
+        setSellerInfo({
+          company_name: data.company_name ?? "",
+          created_at:   data.member_since ?? "",
+          phone:        data.phone       ?? "",
+          address:      data.email     ?? "",
+          tax_id:       data.tax_id      ?? "",
+          description:  data.description ?? "",
+          logo_path:    data.logo_url        ?? "",
+        })
+      } catch (error) {
+        console.error("Error fetching seller profile:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchSellerProfile()
+  }, [])
 
   //boolean pt pop up de edit seller info
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [formData, setFormData] = useState(sellerInfo)
+  useEffect(() => {
+    setFormData(sellerInfo)
+  }, [sellerInfo])
 
   //afisez datele mock de mai sus
   const handleOpenEdit = () => {
-    setFormData(sellerInfo) 
-    setIsEditModalOpen(true)
-  }
+  setFormData(sellerInfo)
+  setLogoFile(null)  // Resetează logo file când deschizi modalul
+  setIsEditModalOpen(true)
+}
 
   ////////// EDIT SELLER PROFILE //////////
-  const handleSaveProfile = () => {
-    const today = new Date().toLocaleDateString('ro-RO', { 
-      day: 'numeric', 
-      month: 'long', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit' 
-    })
+  // const handleSaveProfile = () => {
+  //   const today = new Date().toLocaleDateString('ro-RO', { 
+  //     day: 'numeric', 
+  //     month: 'long', 
+  //     year: 'numeric',
+  //     hour: '2-digit',
+  //     minute: '2-digit',
+  //     second: '2-digit' 
+  //   })
 
-    setSellerInfo({
-      ...formData,
-      created_at: today
-    })
+  //   setSellerInfo({
+  //     ...formData,
+  //     created_at: today
+  //   })
     
-    setIsEditModalOpen(false)
-  }
+  //   setIsEditModalOpen(false)
+  // }
   
-  //incarc imaginea de profil a sellerului
+  // Adaugă un state pentru a păstra File object-ul
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      // Salvează File object-ul pentru upload
+      setLogoFile(file)
+      
+      // Creează preview pentru UI
       const reader = new FileReader()
       reader.onloadend = () => {
         setFormData(prev => ({ ...prev, logo_path: reader.result as string }))
@@ -72,6 +129,51 @@ export default function SellerProfilePage() {
       reader.readAsDataURL(file)
     }
   }
+
+  const handleSaveProfile = async () => {
+    console.log("formData on save:", formData)
+    try {
+      const body: Record<string, string | null | File> = {}
+      
+      if (formData.company_name) body.company_name = formData.company_name
+      if (formData.phone) body.phone = formData.phone
+      if (formData.address) body.address = formData.address  
+      if (formData.tax_id) body.tax_id = formData.tax_id
+      if (formData.description) body.description = formData.description
+      
+      if (logoFile) {
+        body.logo = logoFile
+      }
+          
+      console.log("body being sent:", body)  
+
+      const response = await updateSellerProfile(body)
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("Error response:", errorData)
+        throw new Error("Failed to save profile")
+      }
+
+      const updated = await response.json()
+      console.log("Updated profile response:", updated)
+
+      setSellerInfo({
+        company_name: updated.company_name ?? "",
+        created_at:   updated.member_since ?? "",
+        phone:        updated.phone        ?? "",
+        address:      updated.address      ?? "",  
+        tax_id:       updated.tax_id       ?? "",
+        description:  updated.description  ?? "",
+        logo_path:    updated.logo_url     ?? "",
+      })
+
+      setIsEditModalOpen(false)
+    } catch (error) {
+      console.error("Error saving profile:", error)
+      alert("Eroare la salvarea profilului. Încearcă din nou.")
+    }
+  }
+  
   //restul datelor despre seller
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
