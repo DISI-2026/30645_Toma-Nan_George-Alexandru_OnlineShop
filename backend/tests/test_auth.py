@@ -16,7 +16,7 @@ from application.security import (
     hash_password_reset_token,
     verify_password,
 )
-from models import Buyer, Category, PasswordResetToken, User, UserRole
+from models import Buyer, Category, PasswordResetToken, Seller, User, UserRole
 
 
 async def seed_password_reset_user(
@@ -77,6 +77,47 @@ async def seed_buyer_user(session_factory: async_sessionmaker):
             )
         )
         await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_register_seller_creates_profile_without_logo_path(
+    client: AsyncClient,
+    session_factory: async_sessionmaker,
+):
+    response = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "new.seller@example.com",
+            "password": "Seller123!",
+            "role": "seller",
+            "company_name": "New Seller SRL",
+            "description": "Fresh seller account",
+        },
+    )
+
+    assert response.status_code == 201
+    async with session_factory() as session:
+        seller = (
+            await session.execute(select(Seller).where(Seller.company_name == "New Seller SRL"))
+        ).scalar_one()
+        assert seller.logo_path is None
+
+
+@pytest.mark.asyncio
+async def test_register_seller_rejects_logo_url(client: AsyncClient):
+    response = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "logo.seller@example.com",
+            "password": "Seller123!",
+            "role": "seller",
+            "company_name": "Logo Seller SRL",
+            "description": None,
+            "logo_url": "https://example.com/logo.png",
+        },
+    )
+
+    assert response.status_code == 400
 
 
 @pytest.mark.asyncio

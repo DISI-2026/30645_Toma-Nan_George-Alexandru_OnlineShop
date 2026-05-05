@@ -85,7 +85,6 @@ class RegisterUseCase:
                     user_id=user.id,
                     company_name=seller_request.company_name,
                     description=seller_request.description,
-                    logo_path=seller_request.logo_url,
                 )
             )
 
