@@ -24,6 +24,7 @@ interface EditProfileModalProps {
   onSave: () => void
   onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void
   onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
+  isSaving: boolean
 }
 
 export default function EditProfileModal({
@@ -32,6 +33,7 @@ export default function EditProfileModal({
   onSave,
   onInputChange,
   onImageUpload,
+  isSaving,
 }: EditProfileModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
@@ -113,8 +115,8 @@ export default function EditProfileModal({
             <Button variant="outline" onClick={onClose}>
               Anulare
             </Button>
-            <Button className="bg-orange-500 hover:bg-orange-600 text-white" onClick={onSave}>
-              Salvează Modificările
+            <Button onClick={onSave} disabled={isSaving}>
+              {isSaving ? "Se salvează..." : "Salvează Modificările"}
             </Button>
           </div>
 
