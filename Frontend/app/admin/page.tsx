@@ -265,6 +265,22 @@ export default function AdminDashboard() {
                   </CardContent>
                 </Card>
               </Link>
+
+              <Link href="/admin/stats">
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-green-200 hover:border-green-400">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-green-100 rounded-lg">
+                        <BarChart3 className="w-6 h-6 text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg">Statistici Vânzări</h3>
+                        <p className="text-sm text-gray-600">Analizează performanța platformei</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
             </div>
 
             {/* Recent Activity & Alerts */}
