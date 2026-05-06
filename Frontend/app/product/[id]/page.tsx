@@ -358,7 +358,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               </Card>
 
               {user?.role === "buyer" && (
-                <ReviewForm productId={product.id}
+                <ReviewForm productSlug={product.slug}
                   onReviewSubmitted={(review) => {
                     setReviews(prev => [review, ...prev])
                     setReviewsTotal(prev => prev + 1)

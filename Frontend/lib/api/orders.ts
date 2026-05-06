@@ -116,15 +116,23 @@ export async function getOrderStatus(orderId: number): Promise<OrderStatus> {
 }
 
 export async function getBuyerOrders(): Promise<Order[]> {
-  const data = await getBuyerData()
-  const ids = data.orderIds
-  if (ids.length === 0) return []
-
-  const results = await Promise.allSettled(ids.map(id => getOrderDetails(id)))
-  return results
-    .filter((r): r is PromiseFulfilledResult<Order> => r.status === 'fulfilled')
-    .map(r => r.value)
-    .sort((a, b) => new Date(b.placed_at).getTime() - new Date(a.placed_at).getTime())
+  try {
+    const response = await apiClient.get('/orders')
+    const data = response.data
+    const orders = Array.isArray(data) ? data : (data.data ?? [])
+    return orders.sort((a: Order, b: Order) =>
+      new Date(b.placed_at).getTime() - new Date(a.placed_at).getTime()
+    )
+  } catch (error: any) {
+    const buyerData = await getBuyerData()
+    const ids = buyerData.orderIds
+    if (ids.length === 0) return []
+    const results = await Promise.allSettled(ids.map(id => getOrderDetails(id)))
+    return results
+      .filter((r): r is PromiseFulfilledResult<Order> => r.status === 'fulfilled')
+      .map(r => r.value)
+      .sort((a, b) => new Date(b.placed_at).getTime() - new Date(a.placed_at).getTime())
+  }
 }
 
 export async function getSellerOrders(): Promise<any> {

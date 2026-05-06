@@ -18,11 +18,11 @@ interface ReviewResult {
 }
 
 interface ReviewFormProps {
-  productId: number
+  productSlug: string
   onReviewSubmitted: (review: ReviewResult) => void
 }
 
-export default function ReviewForm({ productId, onReviewSubmitted }: ReviewFormProps) {
+export default function ReviewForm({ productSlug, onReviewSubmitted }: ReviewFormProps) {
   const [rating, setRating] = useState(0)
   const [hovered, setHovered] = useState(0)
   const [comment, setComment] = useState("")
@@ -36,7 +36,7 @@ export default function ReviewForm({ productId, onReviewSubmitted }: ReviewFormP
     }
     setLoading(true)
     try {
-      const response = await fetch(`${API_URL}/api/v1/products/${productId}/reviews`, {
+      const response = await fetch(`${API_URL}/api/v1/products/${productSlug}/reviews`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
