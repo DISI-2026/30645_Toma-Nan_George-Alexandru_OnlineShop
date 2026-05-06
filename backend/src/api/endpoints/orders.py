@@ -9,6 +9,7 @@ from api.dependencies.auth import AuthContext, require_roles
 from api.dependencies.db import get_db_session
 from api.exception_handler import handle_route_exceptions
 from application.dtos.orders import (
+    BuyerOrderListResponseDTO,
     OrderDetailsResponseDTO,
     OrderTrackingStatusResponseDTO,
     PlaceOrderRequestDTO,
@@ -20,6 +21,7 @@ from application.dtos.orders import (
 from application.usecases.orders import (
     GetOrderTrackingStatusUseCase,
     GetOrderDetailsUseCase,
+    ListBuyerOrdersUseCase,
     ListSellerOrdersUseCase,
     PlaceOrdersUseCase,
     UpdateOrderStatusUseCase,
@@ -38,6 +40,19 @@ async def place_order(
 ) -> PlaceOrderResponseDTO:
     use_case = PlaceOrdersUseCase(session)
     return await use_case.execute(auth_context.user_id, request)
+
+
+@router.get("/orders", response_model=BuyerOrderListResponseDTO)
+@handle_route_exceptions()
+async def list_buyer_orders(
+    auth_context: Annotated[AuthContext, Depends(require_roles("buyer"))],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    status: Annotated[OrderStatus | None, Query()] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> BuyerOrderListResponseDTO:
+    use_case = ListBuyerOrdersUseCase(session)
+    return await use_case.execute(auth_context.user_id, status, page, page_size)
 
 
 @router.get("/sellers/me/orders", response_model=SellerOrderListResponseDTO)
