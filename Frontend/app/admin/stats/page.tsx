@@ -1,11 +1,14 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, TrendingUp, DollarSign, ShoppingCart, Calendar } from "lucide-react"
+import { ArrowLeft, TrendingUp, DollarSign, ShoppingCart, Calendar, Loader2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   BarChart,
   Bar,
@@ -21,39 +24,88 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts"
-
-// Mock data pentru demonstrație
-const categoryData = [
-  { id: 1, label: "Electronice", revenue: 45000, orders: 120, percentage: 35 },
-  { id: 2, label: "Îmbrăcăminte", revenue: 32000, orders: 95, percentage: 25 },
-  { id: 3, label: "Casă & Grădină", revenue: 28000, orders: 80, percentage: 22 },
-  { id: 4, label: "Sport", revenue: 23000, orders: 65, percentage: 18 },
-]
-
-const regionData = [
-  { id: 1, label: "București", revenue: 55000, orders: 150, percentage: 40 },
-  { id: 2, label: "Cluj-Napoca", revenue: 35000, orders: 95, percentage: 25 },
-  { id: 3, label: "Timișoara", revenue: 25000, orders: 70, percentage: 18 },
-  { id: 4, label: "Iași", revenue: 23000, orders: 65, percentage: 17 },
-]
-
-const timeData = [
-  { label: "Ian", revenue: 28000, orders: 75 },
-  { label: "Feb", revenue: 32000, orders: 85 },
-  { label: "Mar", revenue: 38000, orders: 95 },
-  { label: "Apr", revenue: 42000, orders: 110 },
-  { label: "Mai", revenue: 48000, orders: 125 },
-  { label: "Iun", revenue: 52000, orders: 140 },
-]
+import { getSalesStats, type SalesStatsGroupBy, type SalesStatsPeriod, type SalesStatsResponse } from "@/lib/api/sales-stats"
+import { toast } from "sonner"
 
 const COLORS = ["#f97316", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"]
 
-export default function AdminStatsPage() {
-  const [activeTab, setActiveTab] = useState("category")
+// Helper pentru formatarea datelor
+function formatDate(date: Date): string {
+  return date.toISOString().split('T')[0]
+}
 
-  // Calculate totals
-  const totalRevenue = categoryData.reduce((sum, item) => sum + item.revenue, 0)
-  const totalOrders = categoryData.reduce((sum, item) => sum + item.orders, 0)
+// Date default: ultima lună
+function getDefaultDates() {
+  const today = new Date()
+  const lastMonth = new Date(today)
+  lastMonth.setMonth(lastMonth.getMonth() - 1)
+  
+  return {
+    dateFrom: formatDate(lastMonth),
+    dateTo: formatDate(today),
+  }
+}
+
+export default function AdminStatsPage() {
+  const [activeTab, setActiveTab] = useState<SalesStatsGroupBy>("category")
+  const [period, setPeriod] = useState<SalesStatsPeriod>("month")
+  const [dateFrom, setDateFrom] = useState(getDefaultDates().dateFrom)
+  const [dateTo, setDateTo] = useState(getDefaultDates().dateTo)
+  
+  const [data, setData] = useState<SalesStatsResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch data când se schimbă filtrele
+  useEffect(() => {
+    fetchStats()
+  }, [activeTab, dateFrom, dateTo, period])
+
+  const fetchStats = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const params = {
+        group_by: activeTab,
+        date_from: dateFrom,
+        date_to: dateTo,
+        ...(activeTab === "period" && { period }),
+      }
+
+      const response = await getSalesStats(params)
+      setData(response)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Eroare la încărcarea statisticilor"
+      setError(message)
+      toast.error(message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleQuickDateRange = (range: "week" | "month" | "quarter" | "year") => {
+    const today = new Date()
+    const from = new Date(today)
+
+    switch (range) {
+      case "week":
+        from.setDate(from.getDate() - 7)
+        break
+      case "month":
+        from.setMonth(from.getMonth() - 1)
+        break
+      case "quarter":
+        from.setMonth(from.getMonth() - 3)
+        break
+      case "year":
+        from.setFullYear(from.getFullYear() - 1)
+        break
+    }
+
+    setDateFrom(formatDate(from))
+    setDateTo(formatDate(today))
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -77,213 +129,325 @@ export default function AdminStatsPage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Filters */}
       <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500">
-                Venit Total
-              </CardTitle>
-              <DollarSign className="w-4 h-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900">
-                {totalRevenue.toLocaleString()} RON
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              Filtre Perioada
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Date From */}
+              <div className="space-y-2">
+                <Label htmlFor="dateFrom">Data Început</Label>
+                <Input
+                  id="dateFrom"
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  max={dateTo}
+                />
               </div>
-              <p className="text-xs text-slate-500 mt-1">
-                <span className="text-green-600 font-medium">+12.5%</span> față de luna trecută
-              </p>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500">
-                Total Comenzi
-              </CardTitle>
-              <ShoppingCart className="w-4 h-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900">{totalOrders}</div>
-              <p className="text-xs text-slate-500 mt-1">
-                <span className="text-blue-600 font-medium">+8.2%</span> față de luna trecută
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500">
-                Valoare Medie Comandă
-              </CardTitle>
-              <TrendingUp className="w-4 h-4 text-orange-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900">
-                {Math.round(totalRevenue / totalOrders).toLocaleString()} RON
+              {/* Date To */}
+              <div className="space-y-2">
+                <Label htmlFor="dateTo">Data Sfârșit</Label>
+                <Input
+                  id="dateTo"
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  min={dateFrom}
+                />
               </div>
-              <p className="text-xs text-slate-500 mt-1">
-                <span className="text-orange-600 font-medium">+4.1%</span> față de luna trecută
-              </p>
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* Charts */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="bg-white border shadow-sm mb-6">
-            <TabsTrigger value="category">Categorii</TabsTrigger>
-            <TabsTrigger value="region">Regiuni</TabsTrigger>
-            <TabsTrigger value="time">Timp</TabsTrigger>
-          </TabsList>
+              {/* Period (doar pentru tab-ul "time") */}
+              {activeTab === "period" && (
+                <div className="space-y-2">
+                  <Label htmlFor="period">Grupare</Label>
+                  <Select value={period} onValueChange={(value) => setPeriod(value as SalesStatsPeriod)}>
+                    <SelectTrigger id="period">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="day">Zilnic</SelectItem>
+                      <SelectItem value="week">Săptămânal</SelectItem>
+                      <SelectItem value="month">Lunar</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
-          {/* Category Charts */}
-          <TabsContent value="category" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Bar Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Vânzări pe Categorii</CardTitle>
-                  <p className="text-sm text-slate-500">Venit generat pe fiecare categorie</p>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={categoryData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="label" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="revenue" fill="#f97316" name="Venit (RON)" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              {/* Pie Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Distribuție Vânzări</CardTitle>
-                  <p className="text-sm text-slate-500">Procentaj din totalul vânzărilor</p>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={categoryData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ label, percentage }) => `${label}: ${percentage}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="revenue"
-                      >
-                        {categoryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+              {/* Quick Ranges */}
+              <div className="space-y-2">
+                <Label>Perioade Rapide</Label>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => handleQuickDateRange("week")}>
+                    7 zile
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleQuickDateRange("month")}>
+                    30 zile
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleQuickDateRange("year")}>
+                    1 an
+                  </Button>
+                </div>
+              </div>
             </div>
-          </TabsContent>
+          </CardContent>
+        </Card>
 
-          {/* Region Charts */}
-          <TabsContent value="region" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Bar Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Vânzări pe Regiuni</CardTitle>
-                  <p className="text-sm text-slate-500">Venit generat pe fiecare regiune</p>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={regionData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="label" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="revenue" fill="#3b82f6" name="Venit (RON)" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              {/* Pie Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Distribuție Regională</CardTitle>
-                  <p className="text-sm text-slate-500">Procentaj din totalul vânzărilor</p>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={regionData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ label, percentage }) => `${label}: ${percentage}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="revenue"
-                      >
-                        {regionData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Time Charts */}
-          <TabsContent value="time" className="space-y-6">
+        {/* Stats Cards */}
+        {data && !loading && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Evoluție Vânzări în Timp</CardTitle>
-                <p className="text-sm text-slate-500">Venit și comenzi pe luni</p>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-500">
+                  Venit Total
+                </CardTitle>
+                <DollarSign className="w-4 h-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={400}>
-                  <LineChart data={timeData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="label" />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      yAxisId="left"
-                      type="monotone"
-                      dataKey="revenue"
-                      stroke="#f97316"
-                      strokeWidth={2}
-                      name="Venit (RON)"
-                    />
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="orders"
-                      stroke="#3b82f6"
-                      strokeWidth={2}
-                      name="Comenzi"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                <div className="text-2xl font-bold text-slate-900">
+                  {data.total_revenue.toLocaleString('ro-RO', { minimumFractionDigits: 2 })} RON
+                </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-500">
+                  Total Comenzi
+                </CardTitle>
+                <ShoppingCart className="w-4 h-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-slate-900">{data.total_orders}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-slate-500">
+                  Valoare Medie Comandă
+                </CardTitle>
+                <TrendingUp className="w-4 h-4 text-orange-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-slate-900">
+                  {data.total_orders > 0
+                    ? (data.total_revenue / data.total_orders).toLocaleString('ro-RO', { minimumFractionDigits: 2 })
+                    : "0.00"}{" "}
+                  RON
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+            <span className="ml-2 text-slate-600">Se încarcă statisticile...</span>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="p-6">
+              <p className="text-red-600">{error}</p>
+              <Button onClick={fetchStats} className="mt-4" variant="outline">
+                Încearcă din nou
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Charts */}
+        {data && !loading && !error && (
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as SalesStatsGroupBy)} className="w-full">
+            <TabsList className="bg-white border shadow-sm mb-6">
+              <TabsTrigger value="category">Categorii</TabsTrigger>
+              <TabsTrigger value="region">Regiuni</TabsTrigger>
+              <TabsTrigger value="period">Timp</TabsTrigger>
+            </TabsList>
+
+            {/* Category Charts */}
+            <TabsContent value="category" className="space-y-6">
+              {data.series.length > 0 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Bar Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Vânzări pe Categorii</CardTitle>
+                      <p className="text-sm text-slate-500">Venit generat pe fiecare categorie</p>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={data.series}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="label" />
+                          <YAxis />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="revenue" fill="#f97316" name="Venit (RON)" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Pie Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Distribuție Vânzări</CardTitle>
+                      <p className="text-sm text-slate-500">Procentaj din totalul vânzărilor</p>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={data.series}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ label, percentage }) => `${label}: ${percentage.toFixed(1)}%`}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="revenue"
+                          >
+                            {data.series.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-12 text-center text-slate-500">
+                    Nu există date pentru perioada selectată
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* Region Charts */}
+            <TabsContent value="region" className="space-y-6">
+              {data.series.length > 0 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Bar Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Vânzări pe Regiuni</CardTitle>
+                      <p className="text-sm text-slate-500">Venit generat pe fiecare regiune</p>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={data.series}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="label" />
+                          <YAxis />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="revenue" fill="#3b82f6" name="Venit (RON)" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Pie Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Distribuție Regională</CardTitle>
+                      <p className="text-sm text-slate-500">Procentaj din totalul vânzărilor</p>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                          <Pie
+                            data={data.series}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ label, percentage }) => `${label}: ${percentage.toFixed(1)}%`}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="revenue"
+                          >
+                            {data.series.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-12 text-center text-slate-500">
+                    Nu există date pentru perioada selectată
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* Time Charts */}
+            <TabsContent value="period" className="space-y-6">
+              {data.series.length > 0 ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Evoluție Vânzări în Timp</CardTitle>
+                    <p className="text-sm text-slate-500">Venit și comenzi pe perioada selectată</p>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={400}>
+                      <LineChart data={data.series}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="label" />
+                        <YAxis yAxisId="left" />
+                        <YAxis yAxisId="right" orientation="right" />
+                        <Tooltip />
+                        <Legend />
+                        <Line
+                          yAxisId="left"
+                          type="monotone"
+                          dataKey="revenue"
+                          stroke="#f97316"
+                          strokeWidth={2}
+                          name="Venit (RON)"
+                        />
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="orders"
+                          stroke="#3b82f6"
+                          strokeWidth={2}
+                          name="Comenzi"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardContent className="p-12 text-center text-slate-500">
+                    Nu există date pentru perioada selectată
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
     </div>
   )
