@@ -4,14 +4,12 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
-    DDL,
     CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
     Text,
     UniqueConstraint,
-    event,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -54,80 +52,3 @@ class Review(Base):
 
     user: Mapped[User] = relationship(back_populates="reviews")
     product: Mapped[Product] = relationship(back_populates="reviews")
-
-
-event.listen(
-    Base.metadata,
-    "after_create",
-    DDL(
-        """
-        CREATE OR REPLACE FUNCTION refresh_product_rating(p_product_id INT)
-        RETURNS VOID AS $$
-        BEGIN
-            UPDATE products
-            SET
-                avg_rating = (SELECT COALESCE(AVG(rating), 0) FROM reviews WHERE product_id = p_product_id),
-                review_count = (SELECT COUNT(*) FROM reviews WHERE product_id = p_product_id)
-            WHERE id = p_product_id;
-        END;
-        $$ LANGUAGE plpgsql;
-        """
-    ).execute_if(dialect="postgresql"),
-)
-
-event.listen(
-    Base.metadata,
-    "after_create",
-    DDL(
-        """
-        CREATE OR REPLACE FUNCTION reviews_aggregate_trigger()
-        RETURNS TRIGGER AS $$
-        BEGIN
-            IF TG_OP = 'INSERT' THEN
-                PERFORM refresh_product_rating(NEW.product_id);
-            ELSIF TG_OP = 'DELETE' THEN
-                PERFORM refresh_product_rating(OLD.product_id);
-            ELSE
-                PERFORM refresh_product_rating(NEW.product_id);
-                IF NEW.product_id <> OLD.product_id THEN
-                    PERFORM refresh_product_rating(OLD.product_id);
-                END IF;
-            END IF;
-            RETURN NULL;
-        END;
-        $$ LANGUAGE plpgsql;
-        """
-    ).execute_if(dialect="postgresql"),
-)
-
-event.listen(
-    Review.__table__,
-    "after_create",
-    DDL(
-        """
-        DROP TRIGGER IF EXISTS reviews_aggregate_aiud ON reviews;
-        CREATE TRIGGER reviews_aggregate_aiud
-        AFTER INSERT OR DELETE OR UPDATE OF rating, product_id ON reviews
-        FOR EACH ROW
-        EXECUTE FUNCTION reviews_aggregate_trigger();
-        """
-    ).execute_if(dialect="postgresql"),
-)
-
-event.listen(
-    Review.__table__,
-    "before_drop",
-    DDL("DROP TRIGGER IF EXISTS reviews_aggregate_aiud ON reviews;").execute_if(dialect="postgresql"),
-)
-
-event.listen(
-    Base.metadata,
-    "after_drop",
-    DDL("DROP FUNCTION IF EXISTS reviews_aggregate_trigger();").execute_if(dialect="postgresql"),
-)
-
-event.listen(
-    Base.metadata,
-    "after_drop",
-    DDL("DROP FUNCTION IF EXISTS refresh_product_rating(INT);").execute_if(dialect="postgresql"),
-)
