@@ -59,9 +59,10 @@ export default function EditProfileModal({
               <Input
                 id="logo_upload"
                 type="file"
-                accept="image/png, image/jpeg, image/jpg"
+                accept="image/png, image/jpeg, image/jpg, image/webp"
                 onChange={onImageUpload}
                 className="cursor-pointer file:text-orange-500 file:bg-orange-50 file:border-0 file:mr-4 file:px-4 file:py-1 hover:file:bg-orange-100"
+                disabled={isSaving}
               />
             </div>
             <p className="text-xs text-slate-500">
@@ -74,6 +75,7 @@ export default function EditProfileModal({
             <Input
               id="company_name" name="company_name"
               value={formData.company_name} onChange={onInputChange}
+              disabled={isSaving}
             />
           </div>
 
@@ -83,6 +85,7 @@ export default function EditProfileModal({
               id="description" name="description"
               value={formData.description} onChange={onInputChange}
               className="min-h-[100px]"
+              disabled={isSaving}
             />
           </div>
 
@@ -92,6 +95,7 @@ export default function EditProfileModal({
               <Input
                 id="phone" name="phone"
                 value={formData.phone} onChange={onInputChange}
+                disabled={isSaving}
               />
             </div>
             <div className="space-y-2">
@@ -99,6 +103,7 @@ export default function EditProfileModal({
               <Input
                 id="tax_id" name="tax_id"
                 value={formData.tax_id} onChange={onInputChange}
+                disabled={isSaving}
               />
             </div>
           </div>
@@ -108,14 +113,15 @@ export default function EditProfileModal({
             <Input
               id="address" name="address" type="email"
               value={formData.address} onChange={onInputChange}
+              disabled={isSaving}
             />
           </div>
 
           <div className="pt-4 flex justify-end gap-3 border-t mt-6">
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" onClick={onClose} disabled={isSaving}>
               Anulare
             </Button>
-            <Button onClick={onSave} disabled={isSaving}>
+            <Button className="bg-orange-500 hover:bg-orange-600 text-white" onClick={onSave} disabled={isSaving}>
               {isSaving ? "Se salvează..." : "Salvează Modificările"}
             </Button>
           </div>

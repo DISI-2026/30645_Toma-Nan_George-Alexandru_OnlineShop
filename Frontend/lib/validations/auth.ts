@@ -28,9 +28,16 @@ export const registerSchema = z
       .string()
       .min(1, "Confirmarea parolei este obligatorie"),
     
-    role: z.enum(["buyer", "seller", "admin"], {
+    role: z.enum(["buyer", "seller"], {
       required_error: "Selectarea rolului este obligatorie",
     }),
+    address: z.string().max(500, "Adresa trebuie sa aiba maxim 500 caractere").optional(),
+    company_name: z.string().max(255, "Numele companiei trebuie sa aiba maxim 255 caractere").optional(),
+    description: z.string().max(4000, "Descrierea trebuie sa aiba maxim 4000 caractere").optional(),
+  })
+  .refine((data) => data.role !== "seller" || Boolean(data.company_name?.trim()), {
+    message: "Numele companiei este obligatoriu pentru seller",
+    path: ["company_name"],
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Parolele nu coincid",

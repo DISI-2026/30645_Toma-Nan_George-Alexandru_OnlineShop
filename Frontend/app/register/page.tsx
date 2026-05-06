@@ -5,16 +5,17 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { Loader2 } from "lucide-react"
+import { toast } from "sonner"
+
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
-import { toast } from "sonner"
-import { registerSchema, type RegisterFormData } from "@/lib/validations/auth"
 import { registerUser } from "@/lib/api/auth"
-import { Loader2 } from "lucide-react"
+import { registerSchema, type RegisterFormData } from "@/lib/validations/auth"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -37,7 +38,6 @@ export default function RegisterPage() {
       address: "",
       company_name: "",
       description: "",
-      logo_url: "",
     },
   })
 
@@ -48,31 +48,22 @@ export default function RegisterPage() {
 
     try {
       const allValues = getValues()
-      let payload
-      if (data.role === "buyer") {
-        payload = {
-          email: data.email,
-          password: data.password,
-          role: "buyer" as const,
-          address: allValues.address || null,
-          preferred_category_ids: [],
-        }
-      } else {
-        const companyName = allValues.company_name?.trim()
-        if (!companyName) {
-          toast.error("Numele companiei este obligatoriu pentru seller")
-          setIsLoading(false)
-          return
-        }
-        payload = {
-          email: data.email,
-          password: data.password,
-          role: "seller" as const,
-          company_name: companyName,
-          description: allValues.description?.trim() || null,
-          logo_url: allValues.logo_url?.trim() || null,
-        }
-      }
+      const payload =
+        data.role === "buyer"
+          ? {
+              email: data.email,
+              password: data.password,
+              role: "buyer" as const,
+              address: allValues.address?.trim() || null,
+              preferred_category_ids: [],
+            }
+          : {
+              email: data.email,
+              password: data.password,
+              role: "seller" as const,
+              company_name: allValues.company_name?.trim() ?? "",
+              description: allValues.description?.trim() || null,
+            }
 
       await registerUser(payload)
 
@@ -169,17 +160,13 @@ export default function RegisterPage() {
                   <Label htmlFor="description">Descriere</Label>
                   <Textarea id="description" placeholder="Descrie afacerea ta..." {...register("description")} className="border-slate-300 focus:border-orange-500 focus:ring-orange-500" disabled={isLoading} />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="logo_url">URL Logo (opțional)</Label>
-                  <Input id="logo_url" type="url" placeholder="https://example.com/logo.png" {...register("logo_url")} className="border-slate-300 focus:border-orange-500 focus:ring-orange-500" disabled={isLoading} />
-                </div>
               </div>
             )}
           </CardContent>
 
           <CardFooter className="flex flex-col space-y-4">
             <Button type="submit" className="w-full bg-orange-500 hover:bg-orange-600 text-white" disabled={isLoading}>
-              {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Se înregistrează...</>) : ("Înregistrare")}
+              {isLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Se înregistrează...</>) : "Înregistrare"}
             </Button>
             <p className="text-sm text-center text-muted-foreground">
               Ai deja cont?{" "}
