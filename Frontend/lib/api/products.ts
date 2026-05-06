@@ -1,3 +1,5 @@
+import type { Product, ProductListQuery, ProductListResponse } from "@/lib/types/product"
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 export interface CreateProductPayload {
@@ -15,22 +17,52 @@ export interface ProductImage {
   display_order: number
 }
 
-export interface Product {
-  id: number
-  seller_id: number
-  category_id: number
-  title: string
-  slug: string
-  description: string | null
-  price: string
-  stock: number
-  is_available: boolean
-  avg_rating: string | null
-  review_count: number
-  created_at: string
-  updated_at: string
-  images: ProductImage[]
+export async function listProducts(query: ProductListQuery = {}): Promise<ProductListResponse> {
+  const params = new URLSearchParams()
+  if (query.q) params.set("q", query.q)
+  if (query.category_id) params.set("category_id", String(query.category_id))
+  if (query.seller_id) params.set("seller_id", String(query.seller_id))
+  if (query.min_price !== undefined) params.set("min_price", String(query.min_price))
+  if (query.max_price !== undefined) params.set("max_price", String(query.max_price))
+  if (query.min_rating !== undefined) params.set("min_rating", String(query.min_rating))
+  if (query.sort) params.set("sort", query.sort)
+  if (query.page) params.set("page", String(query.page))
+  if (query.page_size) params.set("page_size", String(query.page_size))
+
+  try {
+    const response = await fetch(`${API_URL}/api/v1/products?${params.toString()}`)
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      throw new Error(data.message || data.detail || "Eroare la preluarea produselor")
+    }
+    return response.json() as Promise<ProductListResponse>
+  } catch (error) {
+    if (error instanceof Error) throw error
+    throw new Error("Eroare de retea. Verifica conexiunea la internet.")
+  }
 }
+
+export async function getProductById(slug: string): Promise<Product> {
+  try {
+    const response = await fetch(`${API_URL}/api/v1/products/${slug}`)
+
+    if (response.status === 404) {
+      throw new Error("Produsul nu a fost gasit sau a fost sters")
+    }
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      throw new Error(data.message || data.detail || "Eroare la preluarea produsului")
+    }
+
+    return response.json() as Promise<Product>
+  } catch (error) {
+    if (error instanceof Error) throw error
+    throw new Error("Eroare de retea. Verifica conexiunea la internet.")
+  }
+}
+
+//SELLER CREATE PRODUCT
 
 export async function createProduct(
   payload: CreateProductPayload,
@@ -74,4 +106,25 @@ export async function createProduct(
   }
 
   return await response.json()
+}
+
+// Lista produsele unui seller specific
+export async function listSellerProducts(sellerId: number): Promise<ProductListResponse> {
+  const params = new URLSearchParams()
+  params.set("seller_id", String(sellerId))
+  params.set("page_size", "100")
+
+  try {
+    const response = await fetch(`${API_URL}/api/v1/products?${params.toString()}`, {
+      credentials: "include",
+    })
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      throw new Error(data.message || data.detail || "Eroare la preluarea produselor")
+    }
+    return response.json() as Promise<ProductListResponse>
+  } catch (error) {
+    if (error instanceof Error) throw error
+    throw new Error("Eroare de retea. Verifica conexiunea la internet.")
+  }
 }

@@ -23,10 +23,9 @@ import {
   toBackendMediaUrl,
   updateSellerProfile,
   type SellerProfile,
-  type SellerCategory 
 } from "@/lib/api/seller"
-
-import { createProduct } from "@/lib/api/products"
+import { createProduct, listSellerProducts, getProductById } from "@/lib/api/products"
+import { listCategories } from "@/lib/api/categories"
 
 interface SellerInfo {
   company_name: string
@@ -150,29 +149,68 @@ export default function SellerProfilePage() {
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
-  const [categories, setCategories] = useState<SellerCategory[]>([])
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([])
   const [isLoadingCategories, setIsLoadingCategories] = useState(false)
   const [isSavingProduct, setIsSavingProduct] = useState(false)
 
   
 useEffect(() => {
-  // Încarcă profilul seller
   getSellerProfile()
     .then((profile) => {
       const mappedProfile = mapSellerProfile(profile)
       setSellerInfo(mappedProfile)
       setFormData(mappedProfile)
       setProfileExists(true)
-      setCategories(profile.categories || [])
+      
+      return listSellerProducts(profile.id)
+    })
+    .then((productsResponse) => {
+      const transformedProducts = productsResponse.data.map((product) => ({
+        id: product.id,
+        slug: product.slug,  // ← Adaugă slug pentru a putea încărca detalii
+        title: product.title,
+        category: product.category,  
+        price: product.price.toString(),
+        stock: product.stock.toString(),
+        description: '', 
+        images: product.thumbnail_url ? [toBackendMediaUrl(product.thumbnail_url)] : []
+      }))
+      setProductsList(transformedProducts)
     })
     .catch((error) => {
       console.error('ERROR loading seller profile:', error)
+
+      if (error.message.includes('UNAUTHORIZED') || error.message.includes('access token')) {
+        alert('Sesiunea ta a expirat. Te rugăm să te loghezi din nou.')
+        window.location.href = '/login'
+        return
+      }
       setProfileExists(false)
     })
-
 }, [])
 
 
+
+
+  // Încarcă categoriile când se deschide modal-ul de adăugare produs
+  const handleOpenAddProductModal = async () => {
+    setIsAddProductModalOpen(true)
+    setIsLoadingCategories(true)
+    try {
+      const response = await listCategories(1, 100)
+      // Transformă categoriile în formatul așteptat de modal
+      const formattedCategories = response.items.map(cat => ({
+        id: cat.id.toString(),
+        name: cat.name
+      }))
+      setCategories(formattedCategories)
+    } catch (error) {
+      console.error('Eroare la încărcarea categoriilor:', error)
+      alert('Nu am putut încărca categoriile. Te rog încearcă din nou.')
+    } finally {
+      setIsLoadingCategories(false)
+    }
+  }
 
   //adaugare imagini pentru produse
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -245,9 +283,31 @@ useEffect(() => {
       images
     )
 
-    // Adaugă produsul în lista locală pentru afișare
-    setProductsList(prev => [...prev, createdProduct])
+    const selectedCategory = categories.find(cat => cat.id === newProduct.category_id.toString())
     
+    // Transformă imaginile - adaugă /media/ prefix ca pentru logo
+    const productImages = createdProduct.images?.map((img: any) => {
+      const mediaPath = `/media/${img.path}`
+      return toBackendMediaUrl(mediaPath)
+    }) || []
+    
+    // Adaugă produsul în lista locală pentru afișare
+    const displayProduct = {
+      id: createdProduct.id,
+      slug: (createdProduct as any).slug,  // ← Adaugă slug
+      title: createdProduct.title,
+      category: {
+        id: (createdProduct as any).category_id,  
+        name: selectedCategory?.name || 'Unknown Category'
+      }, 
+      price: createdProduct.price.toString(),
+      stock: createdProduct.stock.toString(),
+      description: createdProduct.description,
+      images: productImages
+    }
+    
+    setProductsList(prev => [...prev, displayProduct])
+            
     // Resetează formularul
     setIsAddProductModalOpen(false)
     setNewProduct({ title: "", category_id: 0, price: "", stock: "", description: "" })
@@ -271,10 +331,29 @@ useEffect(() => {
   }
 
   //functie de vizualizare detalii produse
-  const handleViewDetails = (product: any) => {
-    setSelectedProduct(product)
-    setCurrentImageIndex(0)
-    setIsViewModalOpen(true)
+  const handleViewDetails = async (product: any) => {
+    try {
+      // Încarcă detaliile complete ale produsului (cu toate imaginile)
+      const fullProduct = await getProductById(product.slug || product.id.toString())
+      
+      // Transformă produsul pentru modal
+      const productForModal = {
+        id: fullProduct.id,
+        title: fullProduct.title,
+        category: fullProduct.category,
+        price: fullProduct.price.toString(),
+        stock: fullProduct.stock.toString(),
+        description: fullProduct.description || '',
+        images: fullProduct.images.map((img: any) => toBackendMediaUrl(img.url))
+      }
+      
+      setSelectedProduct(productForModal)
+      setCurrentImageIndex(0)
+      setIsViewModalOpen(true)
+    } catch (error) {
+      console.error('Error loading product details:', error)
+      alert('Nu am putut încărca detaliile produsului.')
+    }
   }
 
   ///////// EDITARE PRODUS //////////
@@ -442,7 +521,7 @@ useEffect(() => {
                 {/* buton add product pt products tab activ */}
                 {activeTab === "products" && (
                   <Button 
-                    onClick={() => setIsAddProductModalOpen(true)}
+                    onClick={handleOpenAddProductModal}
                     className="bg-orange-500 hover:bg-orange-600 text-white shadow-sm"
                   >
                     <Plus className="w-4 h-4 mr-2" /> 

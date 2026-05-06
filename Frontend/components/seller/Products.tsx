@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 export interface Product {
   id: number;
   title: string;
-  category: string;
+  category: {id: number; name: string};
   price: string;
   stock: string;
   //campuri optionale

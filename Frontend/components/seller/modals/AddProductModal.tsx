@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface NewProduct {
@@ -16,11 +15,6 @@ interface NewProduct {
   price: string
   stock: string
   description: string
-}
-
-interface Category {
-  id: number
-  name: string
 }
 
 interface AddProductModalProps {
@@ -144,13 +138,19 @@ export default function AddProductModal({
                 <Select 
                   onValueChange={onCategoryChange} 
                   value={newProduct.category_id?.toString() || ""}
+                  disabled={isLoadingCategories || isSaving}
                 >
-                  <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder={isLoadingCategories ? "Loading categories..." : "Select a category"} />
+                  </SelectTrigger>
                   <SelectContent className="z-[100]">
-                    {categories.length === 0 && (
-                      <div className="p-2 text-sm text-gray-500">Nu ai categorii asignate</div>
+                    {isLoadingCategories && (
+                      <div className="p-2 text-sm text-gray-500">Loading...</div>
                     )}
-                    {categories.map((cat) => (
+                    {!isLoadingCategories && categories.length === 0 && (
+                      <div className="p-2 text-sm text-gray-500">No categories available</div>
+                    )}
+                    {!isLoadingCategories && categories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
                         {cat.name}
                       </SelectItem>
