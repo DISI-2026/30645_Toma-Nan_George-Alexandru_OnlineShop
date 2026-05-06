@@ -9,10 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from application.dtos.orders import (
+    BuyerOrderListItemDTO,
+    BuyerOrderListPaginationDTO,
+    BuyerOrderListResponseDTO,
     CheckoutOrderDTO,
+    OrderBuyerDetailsDTO,
     OrderBuyerSummaryDTO,
     OrderDetailsResponseDTO,
     OrderItemDTO,
+    OrderSellerDetailsDTO,
+    OrderSellerSummaryDTO,
     OrderTrackingStatusResponseDTO,
     OrderStatusHistoryDTO,
     PlaceOrderRequestDTO,
@@ -128,6 +134,81 @@ class ListSellerOrdersUseCase:
         )
 
 
+class ListBuyerOrdersUseCase:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def execute(
+        self,
+        user_id: int,
+        status: OrderStatus | None,
+        page: int,
+        page_size: int,
+    ) -> BuyerOrderListResponseDTO:
+        buyer_id = await self._get_buyer_id(user_id)
+        filters = [Order.buyer_id == buyer_id]
+        if status is not None:
+            filters.append(Order.status == status)
+
+        total_statement = select(func.count(Order.id)).where(*filters)
+        total_items = (await self._session.execute(total_statement)).scalar_one()
+
+        statement = (
+            select(
+                Order.id,
+                Order.order_number,
+                Order.status,
+                Order.total,
+                Order.placed_at,
+                Order.updated_at,
+                Seller.id.label("seller_id"),
+                Seller.company_name.label("seller_company_name"),
+                func.coalesce(func.sum(OrderItem.quantity), 0).label("item_count"),
+            )
+            .join(Seller, Seller.id == Order.seller_id)
+            .outerjoin(OrderItem, OrderItem.order_id == Order.id)
+            .where(*filters)
+            .group_by(Order.id, Seller.id)
+            .order_by(Order.placed_at.desc(), Order.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        rows = (await self._session.execute(statement)).all()
+        total_pages = (total_items + page_size - 1) // page_size if total_items else 0
+
+        return BuyerOrderListResponseDTO(
+            data=[
+                BuyerOrderListItemDTO(
+                    id=row.id,
+                    order_number=row.order_number,
+                    status=row.status,
+                    seller=OrderSellerSummaryDTO(
+                        id=row.seller_id,
+                        company_name=row.seller_company_name,
+                    ),
+                    total=row.total,
+                    item_count=row.item_count,
+                    placed_at=row.placed_at,
+                    updated_at=row.updated_at,
+                )
+                for row in rows
+            ],
+            pagination=BuyerOrderListPaginationDTO(
+                page=page,
+                page_size=page_size,
+                total_items=total_items,
+                total_pages=total_pages,
+            ),
+        )
+
+    async def _get_buyer_id(self, user_id: int) -> int:
+        statement = select(Buyer.id).where(Buyer.user_id == user_id)
+        buyer_id = (await self._session.execute(statement)).scalar_one_or_none()
+        if buyer_id is None:
+            raise BuyerProfileNotFoundError("Buyer profile not found.")
+        return buyer_id
+
+
 class GetOrderDetailsUseCase:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -146,6 +227,7 @@ class GetOrderDetailsUseCase:
                 selectinload(Order.items),
                 selectinload(Order.status_history),
                 selectinload(Order.buyer).selectinload(Buyer.user),
+                selectinload(Order.seller).selectinload(Seller.user),
             )
         )
         order = (await self._session.execute(statement)).scalar_one_or_none()
@@ -180,10 +262,20 @@ class GetOrderDetailsUseCase:
         return OrderDetailsResponseDTO(
             id=order.id,
             order_number=order.order_number,
-            buyer=OrderBuyerSummaryDTO(
+            buyer=OrderBuyerDetailsDTO(
                 id=order.buyer.id,
                 email=order.buyer.user.email,
                 full_name=order.buyer.full_name,
+                phone=order.buyer.phone,
+                address=order.buyer.address,
+            ),
+            seller=OrderSellerDetailsDTO(
+                id=order.seller.id,
+                company_name=order.seller.company_name,
+                email=order.seller.user.email,
+                phone=order.seller.phone,
+                address=order.seller.address,
+                tax_id=order.seller.tax_id,
             ),
             seller_id=order.seller_id,
             delivery_address=order.delivery_address,

@@ -17,6 +17,25 @@ class OrderBuyerSummaryDTO(BaseModel):
     full_name: str | None = Field(default=None, max_length=255)
 
 
+class OrderSellerSummaryDTO(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    company_name: str = Field(max_length=255)
+
+
+class OrderBuyerDetailsDTO(OrderBuyerSummaryDTO):
+    phone: str | None = Field(default=None, max_length=50)
+    address: str | None = Field(default=None, max_length=500)
+
+
+class OrderSellerDetailsDTO(OrderSellerSummaryDTO):
+    email: str = Field(max_length=320)
+    phone: str | None = Field(default=None, max_length=50)
+    address: str | None = Field(default=None, max_length=500)
+    tax_id: str | None = Field(default=None, max_length=20)
+
+
 class OrderItemDTO(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -56,12 +75,38 @@ class SellerOrderListResponseDTO(BaseModel):
     total: int = Field(ge=0)
 
 
+class BuyerOrderListItemDTO(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    order_number: str
+    status: OrderStatus
+    seller: OrderSellerSummaryDTO
+    total: Decimal
+    item_count: int = Field(ge=0)
+    placed_at: datetime
+    updated_at: datetime
+
+
+class BuyerOrderListPaginationDTO(BaseModel):
+    page: int = Field(ge=1)
+    page_size: int = Field(ge=1)
+    total_items: int = Field(ge=0)
+    total_pages: int = Field(ge=0)
+
+
+class BuyerOrderListResponseDTO(BaseModel):
+    data: list[BuyerOrderListItemDTO]
+    pagination: BuyerOrderListPaginationDTO
+
+
 class OrderDetailsResponseDTO(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     order_number: str
-    buyer: OrderBuyerSummaryDTO
+    buyer: OrderBuyerDetailsDTO
+    seller: OrderSellerDetailsDTO
     seller_id: int
     delivery_address: dict[str, Any]
     notes: str | None
