@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Users, AlertTriangle, TrendingUp, Eye, Check, X, MessageSquare, BarChart3, FolderTree, LogOut } from "lucide-react"
+import { Users, AlertTriangle, TrendingUp, Eye, Check, X, MessageSquare, BarChart3, FolderTree, LogOut, UserCog } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -244,6 +244,22 @@ export default function AdminDashboard() {
                       <div>
                         <h3 className="font-semibold text-lg">Gestionare Categorii</h3>
                         <p className="text-sm text-gray-600">Administrează categoriile de produse</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+
+              <Link href="/admin/seller-categories">
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-blue-200 hover:border-blue-400">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-blue-100 rounded-lg">
+                        <UserCog className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg">Asocieri Vânzători</h3>
+                        <p className="text-sm text-gray-600">Gestionează categoriile vânzătorilor</p>
                       </div>
                     </div>
                   </CardContent>
