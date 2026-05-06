@@ -2,7 +2,7 @@ export interface ProductImage {
   id: number
   url: string
   is_thumbnail: boolean
-  display_order: number
+  order: number
 }
 
 export interface ProductCategory {
@@ -23,7 +23,7 @@ export interface Product {
   slug: string
   description: string
   price: number
-  discount_percent: number 
+  discount_percent: number
   stock: number
   is_available: boolean
   images: ProductImage[]
@@ -33,6 +33,45 @@ export interface Product {
   seller: ProductSeller
   created_at: string
   updated_at: string
+}
+
+// List product item (returned by GET /api/v1/products)
+export interface ProductListItem {
+  id: number
+  title: string
+  slug: string
+  price: number
+  stock: number
+  is_available: boolean
+  thumbnail_url: string | null
+  avg_rating: number | null
+  review_count: number
+  category: ProductCategory
+  seller: Omit<ProductSeller, "avg_rating">
+}
+
+export interface ProductListPagination {
+  page: number
+  page_size: number
+  total_items: number
+  total_pages: number
+}
+
+export interface ProductListResponse {
+  data: ProductListItem[]
+  pagination: ProductListPagination
+}
+
+export interface ProductListQuery {
+  q?: string
+  category_id?: number
+  seller_id?: number
+  min_price?: number
+  max_price?: number
+  min_rating?: number
+  sort?: "price_asc" | "price_desc" | "rating_desc" | "newest"
+  page?: number
+  page_size?: number
 }
 
 export function getDiscountedPrice(product: Pick<Product, "price" | "discount_percent">): number {

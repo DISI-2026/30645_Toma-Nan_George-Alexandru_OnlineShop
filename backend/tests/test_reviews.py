@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from api.dependencies.auth import ACCESS_TOKEN_COOKIE_NAME
@@ -26,7 +27,8 @@ def auth_cookies(user_id: int, role: str) -> dict[str, str]:
 async def _seed_seller_product(
     session: AsyncSession,
     *,
-    email_prefix: str,
+    email_prefix: str = "seller",
+    title: str | None = None,
     slug: str,
 ) -> tuple[User, Seller, Product]:
     seller_user = User(
@@ -37,10 +39,7 @@ async def _seed_seller_product(
     session.add(seller_user)
     await session.flush()
 
-    seller = Seller(
-        user_id=seller_user.id,
-        company_name=f"Seller {uuid4().hex[:8]}",
-    )
+    seller = Seller(user_id=seller_user.id, company_name=f"Seller {uuid4().hex[:8]}")
     session.add(seller)
     await session.flush()
 
@@ -51,15 +50,19 @@ async def _seed_seller_product(
     product = Product(
         seller_id=seller.id,
         category_id=category.id,
-        title=f"Product {uuid4().hex[:8]}",
+        title=title or f"Product {uuid4().hex[:8]}",
         slug=slug,
         price=Decimal("100.00"),
         stock=10,
     )
     session.add(product)
     await session.flush()
-
     return seller_user, seller, product
+
+
+async def _seed_product(session: AsyncSession, *, title: str, slug: str) -> Product:
+    _, _, product = await _seed_seller_product(session, title=title, slug=slug)
+    return product
 
 
 async def _seed_review(
@@ -211,3 +214,177 @@ async def test_reply_to_missing_review_returns_404(
     )
 
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_review_insert_updates_product_aggregates(
+    session_factory: async_sessionmaker[AsyncSession],
+):
+    async with session_factory() as session:
+        product = await _seed_product(session, title="Phone", slug="phone-review-insert")
+        reviewer = User(
+            email=f"buyer-{uuid4().hex}@test.com",
+            password_hash="hash",
+            role=UserRole.BUYER,
+        )
+        session.add(reviewer)
+        await session.flush()
+
+        session.add(Review(user_id=reviewer.id, product_id=product.id, rating=4))
+        await session.commit()
+
+        await session.refresh(product)
+        assert float(product.avg_rating) == pytest.approx(4.0)
+        assert product.review_count == 1
+
+
+@pytest.mark.asyncio
+async def test_review_delete_updates_product_aggregates(
+    session_factory: async_sessionmaker[AsyncSession],
+):
+    async with session_factory() as session:
+        product = await _seed_product(session, title="Tablet", slug="tablet-review-delete")
+        reviewer = User(
+            email=f"buyer-{uuid4().hex}@test.com",
+            password_hash="hash",
+            role=UserRole.BUYER,
+        )
+        session.add(reviewer)
+        await session.flush()
+
+        review = Review(user_id=reviewer.id, product_id=product.id, rating=5)
+        session.add(review)
+        await session.commit()
+
+        await session.delete(review)
+        await session.commit()
+
+        await session.refresh(product)
+        assert float(product.avg_rating) == pytest.approx(0.0)
+        assert product.review_count == 0
+
+
+@pytest.mark.asyncio
+async def test_review_rating_update_updates_product_average(
+    session_factory: async_sessionmaker[AsyncSession],
+):
+    async with session_factory() as session:
+        product = await _seed_product(session, title="Laptop", slug="laptop-review-update")
+        reviewer = User(
+            email=f"buyer-{uuid4().hex}@test.com",
+            password_hash="hash",
+            role=UserRole.BUYER,
+        )
+        session.add(reviewer)
+        await session.flush()
+
+        review = Review(user_id=reviewer.id, product_id=product.id, rating=2)
+        session.add(review)
+        await session.commit()
+
+        review.rating = 5
+        await session.commit()
+
+        await session.refresh(product)
+        assert float(product.avg_rating) == pytest.approx(5.0)
+        assert product.review_count == 1
+
+
+@pytest.mark.asyncio
+async def test_review_product_move_updates_old_and_new_product_aggregates(
+    session_factory: async_sessionmaker[AsyncSession],
+):
+    async with session_factory() as session:
+        product_a = await _seed_product(session, title="Camera A", slug="camera-a-review-move")
+        product_b = await _seed_product(session, title="Camera B", slug="camera-b-review-move")
+        reviewer = User(
+            email=f"buyer-{uuid4().hex}@test.com",
+            password_hash="hash",
+            role=UserRole.BUYER,
+        )
+        session.add(reviewer)
+        await session.flush()
+
+        review = Review(user_id=reviewer.id, product_id=product_a.id, rating=3)
+        session.add(review)
+        await session.commit()
+
+        review.product_id = product_b.id
+        await session.commit()
+
+        await session.refresh(product_a)
+        await session.refresh(product_b)
+        assert float(product_a.avg_rating) == pytest.approx(0.0)
+        assert product_a.review_count == 0
+        assert float(product_b.avg_rating) == pytest.approx(3.0)
+        assert product_b.review_count == 1
+
+
+@pytest.mark.asyncio
+async def test_unique_review_per_user_per_product_is_enforced(
+    session_factory: async_sessionmaker[AsyncSession],
+):
+    async with session_factory() as session:
+        product = await _seed_product(session, title="Watch", slug="watch-review-unique")
+        reviewer = User(
+            email=f"buyer-{uuid4().hex}@test.com",
+            password_hash="hash",
+            role=UserRole.BUYER,
+        )
+        session.add(reviewer)
+        await session.flush()
+
+        session.add(Review(user_id=reviewer.id, product_id=product.id, rating=4))
+        await session.commit()
+
+        session.add(Review(user_id=reviewer.id, product_id=product.id, rating=5))
+        with pytest.raises(IntegrityError):
+            await session.commit()
+        await session.rollback()
+
+
+@pytest.mark.asyncio
+async def test_rating_check_constraint_is_enforced(
+    session_factory: async_sessionmaker[AsyncSession],
+):
+    async with session_factory() as session:
+        product = await _seed_product(session, title="Speaker", slug="speaker-review-rating-check")
+        reviewer = User(
+            email=f"buyer-{uuid4().hex}@test.com",
+            password_hash="hash",
+            role=UserRole.BUYER,
+        )
+        session.add(reviewer)
+        await session.flush()
+
+        session.add(Review(user_id=reviewer.id, product_id=product.id, rating=0))
+        with pytest.raises(IntegrityError):
+            await session.commit()
+        await session.rollback()
+
+
+@pytest.mark.asyncio
+async def test_comment_length_check_constraint_is_enforced(
+    session_factory: async_sessionmaker[AsyncSession],
+):
+    async with session_factory() as session:
+        product = await _seed_product(session, title="Monitor", slug="monitor-review-comment-check")
+        reviewer = User(
+            email=f"buyer-{uuid4().hex}@test.com",
+            password_hash="hash",
+            role=UserRole.BUYER,
+        )
+        session.add(reviewer)
+        await session.flush()
+
+        session.add(
+            Review(
+                user_id=reviewer.id,
+                product_id=product.id,
+                rating=4,
+                comment="x" * 2001,
+            )
+        )
+        with pytest.raises(IntegrityError):
+            await session.commit()
+        await session.rollback()

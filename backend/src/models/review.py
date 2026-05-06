@@ -27,11 +27,6 @@ class Review(Base):
         UniqueConstraint("user_id", "product_id", name="uq_reviews_user_product"),
         CheckConstraint("rating >= 1 AND rating <= 5", name="ck_reviews_rating_range"),
         CheckConstraint("comment IS NULL OR length(comment) <= 2000", name="ck_reviews_comment_len"),
-        CheckConstraint(
-            "(seller_reply IS NULL AND reply_date IS NULL) OR "
-            "(seller_reply IS NOT NULL AND reply_date IS NOT NULL)",
-            name="ck_reviews_reply_complete",
-        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

@@ -1,5 +1,10 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
+export interface SellerCategory {
+  id: string 
+  name: string
+}
+
 export interface SellerProfile {
   id: number
   company_name: string
@@ -10,6 +15,7 @@ export interface SellerProfile {
   phone: string | null
   address: string | null
   tax_id: string | null
+  categories: SellerCategory[]
 }
 
 export interface SellerProfilePayload {

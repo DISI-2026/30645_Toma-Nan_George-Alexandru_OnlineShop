@@ -1,14 +1,19 @@
+export interface BuyerFavoriteCategory {
+  category_id: number
+  category_name: string
+}
+
 export interface BuyerPreferences {
-  favorite_categories: { id: string; name: string }[]
-  price_range: { min: number; max: number }
+  favorite_categories: BuyerFavoriteCategory[]
+  price_range: { min: number | null; max: number | null }
 }
 
 export interface BuyerProfile {
-  id: string
-  full_name: string
+  id: number
+  full_name: string | null
   email: string
-  phone: string
-  address: string
+  phone: string | null
+  address: string | null
   preferences: BuyerPreferences
   created_at: string
 }
@@ -18,7 +23,7 @@ export interface BuyerUpdatePayload {
   phone?: string
   address?: string
   preferences?: {
-    favorite_categories?: string[]
+    favorite_categories?: number[]   // list of category IDs (integers)
     price_range?: { min: number; max: number }
   }
 }

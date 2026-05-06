@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState, useRef } from "react"
+
 import Link from "next/link"
 import { Search, ShoppingCart, User, Menu, Phone, Mail, FileText, Calendar, Package, ShoppingBag, Plus, LogOut, X, Camera, Edit, PackagePlus, Upload, Eye } from "lucide-react"
 
@@ -22,7 +23,10 @@ import {
   toBackendMediaUrl,
   updateSellerProfile,
   type SellerProfile,
+  type SellerCategory 
 } from "@/lib/api/seller"
+
+import { createProduct } from "@/lib/api/products"
 
 interface SellerInfo {
   company_name: string
@@ -80,20 +84,6 @@ export default function SellerProfilePage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [formData, setFormData] = useState<SellerInfo>(sellerInfo)
 
-  useEffect(() => {
-    getSellerProfile()
-      .then((profile) => {
-        const mappedProfile = mapSellerProfile(profile)
-        setSellerInfo(mappedProfile)
-        setFormData(mappedProfile)
-        setProfileExists(true)
-      })
-      .catch((error) => {
-        console.error(error)
-        setProfileExists(false)
-      })
-  }, [])
-
   //afisez datele mock de mai sus
   const handleOpenEdit = () => {
     setFormData(sellerInfo) 
@@ -129,11 +119,15 @@ export default function SellerProfilePage() {
     }
   }
   
-  //incarc imaginea de profil a sellerului
+  // Adaugă un state pentru a păstra File object-ul
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+
       setSelectedLogoFile(file)
+
       const reader = new FileReader()
       reader.onloadend = () => {
         setFormData(prev => ({ ...prev, logo_path: reader.result as string }))
@@ -141,6 +135,7 @@ export default function SellerProfilePage() {
       reader.readAsDataURL(file)
     }
   }
+
   //restul datelor despre seller
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -154,6 +149,30 @@ export default function SellerProfilePage() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+
+  const [categories, setCategories] = useState<SellerCategory[]>([])
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false)
+  const [isSavingProduct, setIsSavingProduct] = useState(false)
+
+  
+useEffect(() => {
+  // Încarcă profilul seller
+  getSellerProfile()
+    .then((profile) => {
+      const mappedProfile = mapSellerProfile(profile)
+      setSellerInfo(mappedProfile)
+      setFormData(mappedProfile)
+      setProfileExists(true)
+      setCategories(profile.categories || [])
+    })
+    .catch((error) => {
+      console.error('ERROR loading seller profile:', error)
+      setProfileExists(false)
+    })
+
+}, [])
+
+
 
   //adaugare imagini pentru produse
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -186,42 +205,69 @@ export default function SellerProfilePage() {
   
   //sablon adaugare produs la tabel
   const [newProduct, setNewProduct] = useState({
-    title: "", category: "", price: "", stock: "", description: ""
+    title: "", category_id: 0, price: "", stock: "", description: ""
   })
-
-  //adaugare produs
-  const handleAddProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const { name, value } = e.target
-      setNewProduct(prev => ({ ...prev, [name]: value }))
-  }
 
   //adaugare de produs nou la tabel
   const handleSaveNewProduct = async () => {
-    const imageUrls = await Promise.all(
-      images.map(
-        (file) =>
-          new Promise<string>((resolve) => {
-            const reader = new FileReader()
-            reader.onloadend = () => resolve(reader.result as string)
-            reader.readAsDataURL(file)
-          })
-      )
-    )
-
-    const productToAdd = {
-      id: Date.now(),
-      title: newProduct.title || "Produs Fără Nume",
-      category: newProduct.category || "Nespecificat",
-      price: newProduct.price || "0.00",
-      stock: newProduct.stock || "0",
-      description: newProduct.description || "Nicio descriere adaugata",
-      images: imageUrls,
+  try {
+    // Validare de bază
+    if (!newProduct.title.trim()) {
+      alert("Titlul produsului este obligatoriu.")
+      return
+    }
+    if (!newProduct.description.trim()) {
+      alert("Descrierea produsului este obligatorie.")
+      return
+    }
+    if (!newProduct.category_id) {
+      alert("Selectează o categorie.")
+      return
+    }
+    if (!newProduct.price || parseFloat(newProduct.price) <= 0) {
+      alert("Prețul trebuie să fie mai mare decât 0.")
+      return
+    }
+    if (!newProduct.stock || parseInt(newProduct.stock) < 0) {
+      alert("Stocul trebuie să fie un număr pozitiv.")
+      return
     }
 
-    setProductsList(prev => [...prev, productToAdd])
+    // Trimite la backend
+    const createdProduct = await createProduct(
+      {
+        title: newProduct.title,
+        description: newProduct.description,
+        price: newProduct.price,
+        stock: newProduct.stock,
+        category_id: newProduct.category_id,
+      },
+      images
+    )
+
+    // Adaugă produsul în lista locală pentru afișare
+    setProductsList(prev => [...prev, createdProduct])
+    
+    // Resetează formularul
     setIsAddProductModalOpen(false)
-    setNewProduct({ title: "", category: "", price: "", stock: "", description: "" })
+    setNewProduct({ title: "", category_id: 0, price: "", stock: "", description: "" })
     setImages([])
+    
+    alert("Produsul a fost creat cu succes!")
+  } catch (error) {
+    alert(error instanceof Error ? error.message : "Eroare la crearea produsului.")
+  }
+}
+
+
+  //adaugare produs
+  const handleAddProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setNewProduct(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleCategoryChange = (categoryId: string) => {
+    setNewProduct(prev => ({ ...prev, category_id: parseInt(categoryId) }))
   }
 
   //functie de vizualizare detalii produse
@@ -438,10 +484,17 @@ export default function SellerProfilePage() {
         <AddProductModal
           newProduct={newProduct}
           images={images}
-          onClose={() => setIsAddProductModalOpen(false)}
+          categories={categories}
+          isLoadingCategories={isLoadingCategories}
+          isSaving={isSavingProduct}
+          onClose={() => {
+            setIsAddProductModalOpen(false)
+            setNewProduct({ title: "", category_id: 0, price: "", stock: "", description: "" })
+            setImages([])
+          }}
           onSave={handleSaveNewProduct}
           onProductChange={handleAddProductChange}
-          onCategoryChange={(val) => setNewProduct(prev => ({ ...prev, category: val }))}
+          onCategoryChange={handleCategoryChange}
           onImageChange={handleImageChange}
           onRemoveImage={removeImage}
         />
