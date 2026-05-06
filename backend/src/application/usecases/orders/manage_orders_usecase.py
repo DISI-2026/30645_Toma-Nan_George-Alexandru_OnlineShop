@@ -28,6 +28,7 @@ from application.dtos.orders import (
     UpdateOrderStatusRequestDTO,
     UpdateOrderStatusResponseDTO,
 )
+from application.usecases.notifications import NotificationService
 from models import (
     Buyer,
     CartItem,
@@ -318,6 +319,7 @@ class UpdateOrderStatusUseCase(GetOrderDetailsUseCase):
                 changed_by_role=actor.role,
             )
         )
+        self._create_status_notification(order, actor.role, request.status)
 
         await self._session.commit()
         await self._session.refresh(order)
@@ -349,6 +351,37 @@ class UpdateOrderStatusUseCase(GetOrderDetailsUseCase):
         }
         return transitions.get(current_status, [])
 
+    def _create_status_notification(
+        self,
+        order: Order,
+        actor_role: str,
+        new_status: OrderStatus,
+    ) -> None:
+        service = NotificationService(self._session)
+        if new_status == OrderStatus.CANCELLED:
+            if actor_role == "buyer":
+                service.create_order_cancelled_by_buyer_notification(
+                    order.seller.user_id,
+                    order_id=order.id,
+                    order_number=order.order_number,
+                )
+                return
+            if actor_role == "seller":
+                service.create_order_cancelled_by_seller_notification(
+                    order.buyer.user_id,
+                    order_id=order.id,
+                    order_number=order.order_number,
+                )
+                return
+
+        if actor_role == "seller":
+            service.create_order_status_changed_notification(
+                order.buyer.user_id,
+                order_id=order.id,
+                order_number=order.order_number,
+                status=new_status.value,
+            )
+
 
 class PlaceOrdersUseCase:
     def __init__(self, session: AsyncSession) -> None:
@@ -370,6 +403,7 @@ class PlaceOrdersUseCase:
             grouped_items.setdefault(product.seller_id, []).append(cart_item)
 
         created_order_ids: list[int] = []
+        notification_service = NotificationService(self._session)
         for seller_id in sorted(grouped_items):
             seller_items = grouped_items[seller_id]
             order = Order(
@@ -385,6 +419,12 @@ class PlaceOrdersUseCase:
             await self._session.flush()
 
             order.order_number = self._generate_order_number(order.id)
+            seller_user_id = await self._get_seller_user_id(seller_id)
+            notification_service.create_new_order_notification(
+                seller_user_id,
+                order_id=order.id,
+                order_number=order.order_number,
+            )
             self._session.add(
                 OrderStatusHistory(
                     order_id=order.id,
@@ -441,6 +481,13 @@ class PlaceOrdersUseCase:
             .order_by(CartItem.id.asc())
         )
         return list((await self._session.execute(statement)).scalars())
+
+    async def _get_seller_user_id(self, seller_id: int) -> int:
+        statement = select(Seller.user_id).where(Seller.id == seller_id)
+        seller_user_id = (await self._session.execute(statement)).scalar_one_or_none()
+        if seller_user_id is None:
+            raise OrderAccessDeniedError("Seller profile not found.")
+        return seller_user_id
 
     def _compute_total(self, cart_items: list[CartItem]) -> Decimal:
         total = Decimal("0.00")

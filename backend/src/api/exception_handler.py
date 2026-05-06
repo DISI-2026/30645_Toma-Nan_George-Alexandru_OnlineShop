@@ -29,6 +29,10 @@ from application.usecases.cart import (
     CartProductNotFoundError,
     CartQuantityExceedsStockError,
 )
+from application.usecases.notifications import (
+    NotificationAccessDeniedError,
+    NotificationNotFoundError,
+)
 from api.dependencies.seller import SellerNotFoundError
 from application.usecases.products import (
     CategoryNotFoundError,
@@ -42,6 +46,8 @@ from application.usecases.products import (
     TooManyImagesError,
 )
 from application.usecases.reviews import (
+    ReviewAlreadyExistsError,
+    ReviewEligibilityError,
     ReviewNotFoundError,
     ReviewNotOwnedBySellerError,
     ReviewReplyAlreadyExistsError,
@@ -144,7 +150,11 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                         detail=str(exc),
                     ) from exc
-                except (OrderNotFoundError, BuyerProfileNotFoundError) as exc:
+                except (
+                    OrderNotFoundError,
+                    BuyerProfileNotFoundError,
+                    NotificationNotFoundError,
+                ) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=str(exc),
@@ -169,6 +179,11 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         detail=str(exc),
                     ) from exc
                 except OrderAccessDeniedError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=str(exc),
+                    ) from exc
+                except NotificationAccessDeniedError as exc:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail=str(exc),
@@ -198,7 +213,17 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_409_CONFLICT,
                         detail=str(exc),
                     ) from exc
+                except ReviewAlreadyExistsError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=str(exc),
+                    ) from exc
                 except InvalidOrderStatusTransitionError as exc:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=str(exc),
+                    ) from exc
+                except ReviewEligibilityError as exc:
                     raise HTTPException(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                         detail=str(exc),
@@ -319,7 +344,11 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=str(exc),
                 ) from exc
-            except (OrderNotFoundError, BuyerProfileNotFoundError) as exc:
+            except (
+                OrderNotFoundError,
+                BuyerProfileNotFoundError,
+                NotificationNotFoundError,
+            ) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=str(exc),
@@ -334,6 +363,11 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     detail=str(exc),
                 ) from exc
             except OrderAccessDeniedError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=str(exc),
+                ) from exc
+            except NotificationAccessDeniedError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=str(exc),
@@ -363,7 +397,17 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     status_code=status.HTTP_409_CONFLICT,
                     detail=str(exc),
                 ) from exc
+            except ReviewAlreadyExistsError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=str(exc),
+                ) from exc
             except InvalidOrderStatusTransitionError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=str(exc),
+                ) from exc
+            except ReviewEligibilityError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=str(exc),

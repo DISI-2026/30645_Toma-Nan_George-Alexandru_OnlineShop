@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from models import Review
 
@@ -19,6 +19,19 @@ class ReplyToReviewRequestDTO(BaseModel):
         if len(cleaned) > 1000:
             raise ValueError("Reply comment must be at most 1000 characters.")
         return cleaned
+
+
+class CreateReviewRequestDTO(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    comment: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("comment")
+    @classmethod
+    def clean_comment(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        return cleaned or None
 
 
 class SellerReplyDTO(BaseModel):
