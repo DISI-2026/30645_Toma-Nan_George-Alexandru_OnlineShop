@@ -49,6 +49,53 @@ async def app(tmp_path: Path):
                 END;
             """)
         )
+        await connection.execute(
+            text("""
+                CREATE TRIGGER IF NOT EXISTS reviews_aggregate_after_insert
+                AFTER INSERT ON reviews
+                FOR EACH ROW
+                BEGIN
+                    UPDATE products
+                    SET
+                        avg_rating = COALESCE((SELECT AVG(rating) FROM reviews WHERE product_id = NEW.product_id), 0),
+                        review_count = (SELECT COUNT(*) FROM reviews WHERE product_id = NEW.product_id)
+                    WHERE id = NEW.product_id;
+                END;
+            """)
+        )
+        await connection.execute(
+            text("""
+                CREATE TRIGGER IF NOT EXISTS reviews_aggregate_after_delete
+                AFTER DELETE ON reviews
+                FOR EACH ROW
+                BEGIN
+                    UPDATE products
+                    SET
+                        avg_rating = COALESCE((SELECT AVG(rating) FROM reviews WHERE product_id = OLD.product_id), 0),
+                        review_count = (SELECT COUNT(*) FROM reviews WHERE product_id = OLD.product_id)
+                    WHERE id = OLD.product_id;
+                END;
+            """)
+        )
+        await connection.execute(
+            text("""
+                CREATE TRIGGER IF NOT EXISTS reviews_aggregate_after_update
+                AFTER UPDATE OF rating, product_id ON reviews
+                FOR EACH ROW
+                BEGIN
+                    UPDATE products
+                    SET
+                        avg_rating = COALESCE((SELECT AVG(rating) FROM reviews WHERE product_id = NEW.product_id), 0),
+                        review_count = (SELECT COUNT(*) FROM reviews WHERE product_id = NEW.product_id)
+                    WHERE id = NEW.product_id;
+                    UPDATE products
+                    SET
+                        avg_rating = COALESCE((SELECT AVG(rating) FROM reviews WHERE product_id = OLD.product_id), 0),
+                        review_count = (SELECT COUNT(*) FROM reviews WHERE product_id = OLD.product_id)
+                    WHERE id = OLD.product_id AND OLD.product_id <> NEW.product_id;
+                END;
+            """)
+        )
 
     factory = async_sessionmaker(engine, expire_on_commit=False)
     application.state.db_sessionmaker = factory
