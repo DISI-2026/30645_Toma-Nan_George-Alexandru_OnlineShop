@@ -19,13 +19,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const refreshCart = async () => {
     // Only fetch cart if user is logged in as buyer
-    const user = getUser()
-    if (!user || user.role !== 'buyer') {
-      setCartItemCount(0)
-      return
-    }
-
     try {
+      const user = await getUser()
+      if (!user || user.role !== 'buyer') {
+        setCartItemCount(0)
+        return
+      }
+
       const cart = await getCart()
       const count = cart.items.reduce((sum, item) => sum + item.quantity, 0)
       setCartItemCount(count)

@@ -48,54 +48,31 @@ export interface OrderStatus {
   last_updated: string;
 }
 
-
-interface BuyerData {
-  addresses: any[];
-  orderIds: number[];
+export interface BuyerOrderListItem {
+  id: number;
+  order_number: string;
+  status: string;
+  seller: {
+    id: number;
+    company_name: string;
+  };
+  total: string;
+  item_count: number;
+  placed_at: string;
+  updated_at: string;
 }
 
-async function getBuyerData(): Promise<BuyerData> {
-  try {
-    const response = await apiClient.get("/me")
-    const raw = response.data?.buyer?.address
-    if (!raw) return { addresses: [], orderIds: [] }
-    const parsed = JSON.parse(raw)
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && 'orderIds' in parsed) {
-      return { addresses: parsed.addresses ?? [], orderIds: parsed.orderIds ?? [] }
-    }
-    if (Array.isArray(parsed)) {
-      return { addresses: parsed, orderIds: [] }
-    }
-    return { addresses: [], orderIds: [] }
-  } catch {
-    return { addresses: [], orderIds: [] }
-  }
+export interface BuyerOrderListPagination {
+  page: number;
+  page_size: number;
+  total_items: number;
+  total_pages: number;
 }
 
-async function saveBuyerData(data: BuyerData): Promise<void> {
-  await apiClient.patch("/buyer/me", {
-    address: JSON.stringify({ addresses: data.addresses, orderIds: data.orderIds }),
-  })
+export interface BuyerOrderListResponse {
+  data: BuyerOrderListItem[];
+  pagination: BuyerOrderListPagination;
 }
-
-
-export async function saveOrderIds(orderIds: number[]): Promise<void> {
-  const data = await getBuyerData()
-  const merged = Array.from(new Set([...data.orderIds, ...orderIds]))
-  await saveBuyerData({ ...data, orderIds: merged })
-}
-
-
-export async function getAddressesFromBuyer(): Promise<any[]> {
-  const data = await getBuyerData()
-  return data.addresses
-}
-
-export async function saveAddressesToBuyer(addresses: any[]): Promise<void> {
-  const data = await getBuyerData()
-  await saveBuyerData({ ...data, addresses })
-}
-
 
 export async function createOrder(data: CreateOrderRequest): Promise<CreateOrderResponse> {
   const response = await apiClient.post('/orders', {
@@ -115,27 +92,60 @@ export async function getOrderStatus(orderId: number): Promise<OrderStatus> {
   return response.data;
 }
 
-export async function getBuyerOrders(): Promise<Order[]> {
+export async function getBuyerOrders(
+  status?: string,
+  page: number = 1,
+  pageSize: number = 20
+): Promise<Order[]> {
   try {
-    const response = await apiClient.get('/orders')
-    const data = response.data
-    const orders = Array.isArray(data) ? data : (data.data ?? [])
-    return orders.sort((a: Order, b: Order) =>
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    params.append('page', page.toString());
+    params.append('page_size', pageSize.toString());
+    
+    const response = await apiClient.get(`/orders?${params.toString()}`);
+    const data: BuyerOrderListResponse = response.data;
+    
+    const orders: Order[] = await Promise.all(
+      data.data.map(async (item) => {
+        try {
+          const fullOrder = await getOrderDetails(item.id);
+          return fullOrder;
+        } catch {
+          // Fallback to basic order info if details fetch fails
+          return {
+            id: item.id,
+            order_number: item.order_number,
+            buyer: { id: 0, email: '', full_name: null },
+            seller_id: item.seller.id,
+            delivery_address: { address: '' },
+            notes: null,
+            items: [],
+            total: item.total,
+            status: item.status,
+            placed_at: item.placed_at,
+            updated_at: item.updated_at,
+            status_history: []
+          };
+        }
+      })
+    );
+    
+    return orders.sort((a, b) => 
       new Date(b.placed_at).getTime() - new Date(a.placed_at).getTime()
-    )
+    );
   } catch (error: any) {
-    const buyerData = await getBuyerData()
-    const ids = buyerData.orderIds
-    if (ids.length === 0) return []
-    const results = await Promise.allSettled(ids.map(id => getOrderDetails(id)))
-    return results
-      .filter((r): r is PromiseFulfilledResult<Order> => r.status === 'fulfilled')
-      .map(r => r.value)
-      .sort((a, b) => new Date(b.placed_at).getTime() - new Date(a.placed_at).getTime())
+    console.error('Failed to fetch buyer orders:', error);
+    return [];
   }
 }
 
 export async function getSellerOrders(): Promise<any> {
   const response = await apiClient.get('/sellers/me/orders');
   return response.data;
+}
+
+export async function saveOrderIds(orderIds: number[]): Promise<void> {
+
+  console.log('Order IDs saved to backend automatically:', orderIds);
 }
