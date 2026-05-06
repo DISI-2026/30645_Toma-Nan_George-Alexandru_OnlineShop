@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label"
 interface Product {
   id: number
   title: string
-  category: string
+  category: {
+    id: number 
+    name: string}
   price: string
   stock: string
   description: string
@@ -87,7 +89,7 @@ export default function ViewProductModal({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-xs text-slate-500 uppercase tracking-wider">Categorie</Label>
-                <p className="text-sm font-medium text-slate-700">{product.category}</p>
+                <p className="text-sm font-medium text-slate-700">{product.category.name}</p>
               </div>
               <div>
                 <Label className="text-xs text-slate-500 uppercase tracking-wider">Stoc</Label>

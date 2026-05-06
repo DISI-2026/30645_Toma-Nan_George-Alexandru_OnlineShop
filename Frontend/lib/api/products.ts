@@ -107,3 +107,24 @@ export async function createProduct(
 
   return await response.json()
 }
+
+// Lista produsele unui seller specific
+export async function listSellerProducts(sellerId: number): Promise<ProductListResponse> {
+  const params = new URLSearchParams()
+  params.set("seller_id", String(sellerId))
+  params.set("page_size", "100")
+
+  try {
+    const response = await fetch(`${API_URL}/api/v1/products?${params.toString()}`, {
+      credentials: "include",
+    })
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      throw new Error(data.message || data.detail || "Eroare la preluarea produselor")
+    }
+    return response.json() as Promise<ProductListResponse>
+  } catch (error) {
+    if (error instanceof Error) throw error
+    throw new Error("Eroare de retea. Verifica conexiunea la internet.")
+  }
+}
