@@ -23,7 +23,6 @@ export interface SellerRegisterData {
   role: "seller"
   company_name: string
   description: string | null
-  logo_url: string | null
 }
 
 export type RegisterData = BuyerRegisterData | SellerRegisterData

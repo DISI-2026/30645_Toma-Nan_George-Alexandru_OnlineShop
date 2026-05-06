@@ -68,6 +68,62 @@ async def _create_triggers(connection: AsyncConnection) -> None:
             EXECUTE FUNCTION enforce_max_product_images();
         """)
     )
+    
+    await connection.execute(
+        text("""
+            CREATE OR REPLACE FUNCTION refresh_product_rating(p_product_id INT)
+            RETURNS VOID AS $$
+            BEGIN
+                UPDATE products
+                SET
+                    avg_rating = (
+                        SELECT COALESCE(AVG(rating), 0)
+                        FROM reviews
+                        WHERE product_id = p_product_id
+                    ),
+                    review_count = (
+                        SELECT COUNT(*)
+                        FROM reviews
+                        WHERE product_id = p_product_id
+                    )
+                WHERE id = p_product_id;
+            END;
+            $$ LANGUAGE plpgsql;
+        """)
+    )
+
+    await connection.execute(
+        text("""
+            CREATE OR REPLACE FUNCTION reviews_aggregate_trigger()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                IF TG_OP = 'INSERT' THEN
+                    PERFORM refresh_product_rating(NEW.product_id);
+                ELSIF TG_OP = 'DELETE' THEN
+                    PERFORM refresh_product_rating(OLD.product_id);
+                ELSE
+                    PERFORM refresh_product_rating(NEW.product_id);
+                    IF NEW.product_id <> OLD.product_id THEN
+                        PERFORM refresh_product_rating(OLD.product_id);
+                    END IF;
+                END IF;
+                RETURN NULL;
+            END;
+            $$ LANGUAGE plpgsql;
+        """)
+    )
+
+    await connection.execute(
+        text("DROP TRIGGER IF EXISTS reviews_aggregate_aiud ON reviews;")
+    )
+    await connection.execute(
+        text("""
+            CREATE TRIGGER reviews_aggregate_aiud
+            AFTER INSERT OR DELETE OR UPDATE OF rating, product_id ON reviews
+            FOR EACH ROW
+            EXECUTE FUNCTION reviews_aggregate_trigger();
+        """)
+    )
 
 
 async def initialize_schema(engine: AsyncEngine) -> None:

@@ -1,13 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { Users, AlertTriangle, TrendingUp, Eye, Check, X, MessageSquare, BarChart3 } from "lucide-react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { Users, AlertTriangle, TrendingUp, Eye, Check, X, MessageSquare, BarChart3, FolderTree, LogOut, UserCog } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { Textarea } from "@/components/ui/textarea"
+import { logout } from "@/lib/auth-utils"
 
 // Mock admin data
 const adminStats = {
@@ -133,6 +136,12 @@ function ModerationItem({ item }: { item: (typeof flaggedItems)[0] }) {
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    await logout()
+    router.push("/")
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -141,14 +150,23 @@ export default function AdminDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+              <h1 className="text-2xl font-bold text-orange-600">Admin Dashboard</h1>
               <p className="text-gray-600">Platform Management & Moderation</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Badge className="bg-red-100 text-red-800">
                 <AlertTriangle className="w-3 h-3 mr-1" />
                 {adminStats.flaggedContent} items need attention
               </Badge>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleLogout}
+                className="flex items-center gap-2 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </Button>
             </div>
           </div>
         </div>
@@ -166,12 +184,12 @@ export default function AdminDashboard() {
           <TabsContent value="overview" className="mt-6">
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <Card>
+              <Card className="border-l-4 border-l-orange-500">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">Total Users</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{adminStats.totalUsers.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">{adminStats.totalUsers}</div>
                   <div className="flex items-center text-sm text-green-600">
                     <TrendingUp className="w-4 h-4 mr-1" />
                     +5.2% this month
@@ -179,31 +197,31 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="border-l-4 border-l-orange-400">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">Active Sellers</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{adminStats.totalSellers.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">{adminStats.totalSellers}</div>
                   <div className="text-sm text-gray-600">
                     {Math.round((adminStats.totalSellers / adminStats.totalUsers) * 100)}% of users
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="border-l-4 border-l-orange-300">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">Total Products</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{adminStats.totalProducts.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">{adminStats.totalProducts}</div>
                   <div className="text-sm text-gray-600">
                     Avg {Math.round(adminStats.totalProducts / adminStats.totalSellers)} per seller
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="border-l-4 border-l-green-500">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium">Platform Trust Score</CardTitle>
                 </CardHeader>
@@ -212,6 +230,57 @@ export default function AdminDashboard() {
                   <Progress value={adminStats.avgTrustScore} className="mt-2" />
                 </CardContent>
               </Card>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <Link href="/admin/categories">
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-orange-200 hover:border-orange-400">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-orange-100 rounded-lg">
+                        <FolderTree className="w-6 h-6 text-orange-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg">Gestionare Categorii</h3>
+                        <p className="text-sm text-gray-600">Administrează categoriile de produse</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+
+              <Link href="/admin/seller-categories">
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-blue-200 hover:border-blue-400">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-blue-100 rounded-lg">
+                        <UserCog className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg">Asocieri Vânzători</h3>
+                        <p className="text-sm text-gray-600">Gestionează categoriile vânzătorilor</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+
+              <Link href="/admin/stats">
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-green-200 hover:border-green-400">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-green-100 rounded-lg">
+                        <BarChart3 className="w-6 h-6 text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg">Statistici Vânzări</h3>
+                        <p className="text-sm text-gray-600">Analizează performanța platformei</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
             </div>
 
             {/* Recent Activity & Alerts */}
@@ -233,7 +302,7 @@ export default function AdminDashboard() {
                       </div>
                     ))}
                   </div>
-                  <Button variant="outline" className="w-full mt-4">
+                  <Button variant="outline" className="w-full mt-4 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300">
                     View All Flagged Items
                   </Button>
                 </CardContent>

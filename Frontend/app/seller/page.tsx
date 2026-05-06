@@ -1,6 +1,7 @@
 "use client"
 
-import React, { useState, useRef } from "react"
+import React, { useEffect, useState, useRef } from "react"
+
 import Link from "next/link"
 import { Search, ShoppingCart, User, Menu, Phone, Mail, FileText, Calendar, Package, ShoppingBag, Plus, LogOut, X, Camera, Edit, PackagePlus, Upload, Eye } from "lucide-react"
 
@@ -16,55 +17,128 @@ import ViewProductModal from "@/components/seller/modals/ViewProductModal"
 import AddProductModal from "@/components/seller/modals/AddProductModal"
 import EditProfileModal from "@/components/seller/modals/EditProfileModal"
 import EditProductModal from "@/components/seller/modals/EditProductModal"
+import {
+  createSellerProfile,
+  getSellerProfile,
+  toBackendMediaUrl,
+  updateSellerProfile,
+  type SellerProfile,
+} from "@/lib/api/seller"
+
+interface SellerInfo {
+  company_name: string
+  created_at: string
+  phone: string
+  address: string
+  tax_id: string
+  description: string
+  logo_path: string
+}
+
+const EMPTY_SELLER_INFO: SellerInfo = {
+  company_name: "",
+  created_at: "",
+  phone: "",
+  address: "",
+  tax_id: "",
+  description: "",
+  logo_path: "",
+}
+
+function formatDate(value: string): string {
+  return new Date(value).toLocaleDateString("ro-RO", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  })
+}
+
+function mapSellerProfile(profile: SellerProfile): SellerInfo {
+  return {
+    company_name: profile.company_name,
+    created_at: formatDate(profile.member_since),
+    phone: profile.phone ?? "",
+    address: profile.address ?? "",
+    tax_id: profile.tax_id ?? "",
+    description: profile.description ?? "",
+    logo_path: toBackendMediaUrl(profile.logo_url),
+  }
+}
 
 export default function SellerProfilePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("products")  //sectiunea de taburi se deschide automat cu cea de products
 
-  //mock data pentru contul de seller
-  const [sellerInfo, setSellerInfo] = useState({
-    company_name: "TechGear Pro Solutions S.R.L.",
-    created_at: "12 Octombrie 2023, 10:30:45",
-    phone: "+40 722 123 456",
-    address: "contact@techgear-pro.ro",
-    tax_id: "RO123456789",
-    description: "Suntem lideri in distributia de accesorii tech premium. Ne dedicam calitatii si satisfactiei clientilor nostri prin oferirea celor mai noi tehnologii de pe piata.",
-    logo_path: ""
-  })
+  const [sellerInfo, setSellerInfo] = useState<SellerInfo>(EMPTY_SELLER_INFO)
+  const [profileExists, setProfileExists] = useState(false)
+  const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null)
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
 
   //boolean pt pop up de edit seller info
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [formData, setFormData] = useState(sellerInfo)
+  const [formData, setFormData] = useState<SellerInfo>(sellerInfo)
+
+  useEffect(() => {
+    getSellerProfile()
+      .then((profile) => {
+        const mappedProfile = mapSellerProfile(profile)
+        setSellerInfo(mappedProfile)
+        setFormData(mappedProfile)
+        setProfileExists(true)
+      })
+      .catch((error) => {
+        console.error(error)
+        setProfileExists(false)
+      })
+  }, [])
 
   //afisez datele mock de mai sus
   const handleOpenEdit = () => {
     setFormData(sellerInfo) 
+    setSelectedLogoFile(null)
     setIsEditModalOpen(true)
   }
 
   ////////// EDIT SELLER PROFILE //////////
-  const handleSaveProfile = () => {
-    const today = new Date().toLocaleDateString('ro-RO', { 
-      day: 'numeric', 
-      month: 'long', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit' 
-    })
+  const handleSaveProfile = async () => {
+    try {
+      setIsSavingProfile(true)
+      const payload = {
+        company_name: formData.company_name,
+        description: formData.description,
+        phone: formData.phone,
+        address: formData.address,
+        tax_id: formData.tax_id,
+      }
+      const savedProfile = profileExists
+        ? await updateSellerProfile(payload, selectedLogoFile)
+        : await createSellerProfile(payload, selectedLogoFile)
 
-    setSellerInfo({
-      ...formData,
-      created_at: today
-    })
-    
-    setIsEditModalOpen(false)
+      const mappedProfile = mapSellerProfile(savedProfile)
+      setSellerInfo(mappedProfile)
+      setFormData(mappedProfile)
+      setSelectedLogoFile(null)
+      setProfileExists(true)
+      setIsEditModalOpen(false)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Nu am putut salva profilul.")
+    } finally {
+      setIsSavingProfile(false)
+    }
   }
   
-  //incarc imaginea de profil a sellerului
+  // Adaugă un state pentru a păstra File object-ul
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+
+      setSelectedLogoFile(file)
+
       const reader = new FileReader()
       reader.onloadend = () => {
         setFormData(prev => ({ ...prev, logo_path: reader.result as string }))
@@ -72,6 +146,7 @@ export default function SellerProfilePage() {
       reader.readAsDataURL(file)
     }
   }
+
   //restul datelor despre seller
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -361,6 +436,7 @@ export default function SellerProfilePage() {
           onSave={handleSaveProfile}
           onInputChange={handleInputChange}
           onImageUpload={handleImageUpload}
+          isSaving={isSavingProfile}
         />
       )}
 

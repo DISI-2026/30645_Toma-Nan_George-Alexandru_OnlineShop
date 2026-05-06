@@ -30,7 +30,6 @@ class RegisterSellerRequestDTO(RegisterBaseRequestDTO):
     role: Literal["seller"]
     company_name: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=4000)
-    logo_url: str | None = Field(default=None, max_length=1024)
 
     @model_validator(mode="after")
     def normalize_company_name(self) -> "RegisterSellerRequestDTO":
