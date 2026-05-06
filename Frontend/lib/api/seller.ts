@@ -1,5 +1,11 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
+
+  export interface SellerCategory {
+    id: string 
+    name: string
+  }
+
 export interface SellerProfile {
   id: number
   company_name: string
@@ -10,6 +16,7 @@ export interface SellerProfile {
   phone: string | null
   address: string | null
   tax_id: string | null
+  categories: SellerCategory[]
 }
 
 export interface SellerProfilePayload {
@@ -121,23 +128,4 @@ export async function updateSellerProfile(
   })
 
   return parseResponse(response, "Nu am putut actualiza profilul sellerului.")
-}
-
-export interface Category {
-  id: number
-  name: string
-  description: string | null
-}
-
-export async function getSellerCategories(): Promise<Category[]> {
-  const response = await fetch(`${API_URL}/api/v1/categories?page=1&page_size=100`, {
-    credentials: "include",
-  })
-
-  if (!response.ok) {
-    throw new Error("Nu am putut încărca categoriile.")
-  }
-
-  const data = await response.json()
-  return data.items || []
 }

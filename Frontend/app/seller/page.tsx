@@ -23,7 +23,7 @@ import {
   toBackendMediaUrl,
   updateSellerProfile,
   type SellerProfile,
-  getSellerCategories, type Category 
+  type SellerCategory 
 } from "@/lib/api/seller"
 
 import { createProduct } from "@/lib/api/products"
@@ -83,7 +83,7 @@ export default function SellerProfilePage() {
   //boolean pt pop up de edit seller info
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [formData, setFormData] = useState<SellerInfo>(sellerInfo)
-
+  
   useEffect(() => {
     getSellerProfile()
       .then((profile) => {
@@ -164,7 +164,7 @@ export default function SellerProfilePage() {
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
-  const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([])
+  const [categories, setCategories] = useState<SellerCategory[]>([])
   const [isLoadingCategories, setIsLoadingCategories] = useState(false)
   const [isSavingProduct, setIsSavingProduct] = useState(false)
 
@@ -177,18 +177,13 @@ useEffect(() => {
       setSellerInfo(mappedProfile)
       setFormData(mappedProfile)
       setProfileExists(true)
+      setCategories(profile.categories || [])
     })
     .catch((error) => {
       console.error(error)
       setProfileExists(false)
     })
 
-  // Încarcă categoriile
-  getSellerCategories()
-    .then(setCategories)
-    .catch((error) => {
-      console.error("Eroare la încărcarea categoriilor:", error)
-    })
 }, [])
 
 

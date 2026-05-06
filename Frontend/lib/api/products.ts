@@ -5,7 +5,7 @@ export interface CreateProductPayload {
   description: string
   price: string
   stock: string
-  category_id: number  // IMPORTANT: ID numeric, nu string
+  category_id: number
 }
 
 export interface ProductImage {

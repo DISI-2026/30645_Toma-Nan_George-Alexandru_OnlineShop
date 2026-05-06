@@ -26,7 +26,7 @@ interface Category {
 interface AddProductModalProps {
   newProduct: NewProduct
   images: File[]
-  categories: Category[]
+  categories: Array<{ id: string; name: string }>
   isLoadingCategories: boolean
   isSaving: boolean
   onClose: () => void
@@ -143,16 +143,13 @@ export default function AddProductModal({
                 <Label>Category *</Label>
                 <Select 
                   onValueChange={onCategoryChange} 
-                  value={newProduct.category_id > 0 ? newProduct.category_id.toString() : undefined}
-                  disabled={isLoadingCategories || isSaving}
+                  value={newProduct.category_id?.toString() || ""}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder={isLoadingCategories ? "Loading categories..." : "Select a category"} />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
                   <SelectContent className="z-[100]">
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id.toString()}>
-                        {category.name}
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
