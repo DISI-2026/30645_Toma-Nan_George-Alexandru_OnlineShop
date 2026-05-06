@@ -30,6 +30,7 @@ class Order(Base):
     __table_args__ = (
         Index("ix_orders_seller_id_status", "seller_id", "status"),
         Index("ix_orders_buyer_id_placed_at_desc", "buyer_id", desc("placed_at")),
+        Index("ix_orders_placed_at_status", "placed_at", "status"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

@@ -10,6 +10,7 @@ from .order_status_history import OrderStatusHistory
 from .password_reset_token import PasswordResetToken
 from .product import Product
 from .product_image import ProductImage
+from .review import Review
 from .seller import Seller
 from .seller_category import seller_categories
 from .user import User, UserRole
@@ -28,6 +29,7 @@ __all__ = [
     "PasswordResetToken",
     "Product",
     "ProductImage",
+    "Review",
     "Seller",
     "seller_categories",
     "User",
