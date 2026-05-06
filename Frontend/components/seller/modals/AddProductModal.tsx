@@ -147,6 +147,9 @@ export default function AddProductModal({
                 >
                   <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
                   <SelectContent className="z-[100]">
+                    {categories.length === 0 && (
+                      <div className="p-2 text-sm text-gray-500">Nu ai categorii asignate</div>
+                    )}
                     {categories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
                         {cat.name}
