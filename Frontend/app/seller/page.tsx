@@ -83,20 +83,6 @@ export default function SellerProfilePage() {
   //boolean pt pop up de edit seller info
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [formData, setFormData] = useState<SellerInfo>(sellerInfo)
-  
-  useEffect(() => {
-    getSellerProfile()
-      .then((profile) => {
-        const mappedProfile = mapSellerProfile(profile)
-        setSellerInfo(mappedProfile)
-        setFormData(mappedProfile)
-        setProfileExists(true)
-      })
-      .catch((error) => {
-        console.error(error)
-        setProfileExists(false)
-      })
-  }, [])
 
   //afisez datele mock de mai sus
   const handleOpenEdit = () => {
