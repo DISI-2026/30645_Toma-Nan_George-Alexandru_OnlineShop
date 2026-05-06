@@ -129,6 +129,7 @@ async def _create_triggers(connection: AsyncConnection) -> None:
 async def initialize_schema(engine: AsyncEngine) -> None:
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+        await _ensure_review_reply_columns(connection)
         await _create_triggers(connection)
 
 
@@ -136,7 +137,23 @@ async def reset_schema(engine: AsyncEngine) -> None:
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.drop_all)
         await connection.run_sync(Base.metadata.create_all)
+        await _ensure_review_reply_columns(connection)
         await _create_triggers(connection)
+
+
+async def _ensure_review_reply_columns(connection: AsyncConnection) -> None:
+    if connection.dialect.name != "postgresql":
+        return
+
+    await connection.execute(
+        text("ALTER TABLE IF EXISTS reviews ADD COLUMN IF NOT EXISTS seller_reply TEXT;")
+    )
+    await connection.execute(
+        text(
+            "ALTER TABLE IF EXISTS reviews "
+            "ADD COLUMN IF NOT EXISTS reply_date TIMESTAMP WITH TIME ZONE;"
+        )
+    )
 
 
 async def _run_schema_command(reset: bool) -> None:

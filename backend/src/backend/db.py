@@ -33,6 +33,18 @@ def connect() -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
 async def ensure_schema(engine: AsyncEngine) -> None:
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+        if connection.dialect.name == "postgresql":
+            from sqlalchemy import text
+
+            await connection.execute(
+                text("ALTER TABLE IF EXISTS reviews ADD COLUMN IF NOT EXISTS seller_reply TEXT;")
+            )
+            await connection.execute(
+                text(
+                    "ALTER TABLE IF EXISTS reviews "
+                    "ADD COLUMN IF NOT EXISTS reply_date TIMESTAMP WITH TIME ZONE;"
+                )
+            )
 
 
 async def disconnect(engine: AsyncEngine | None) -> None:
