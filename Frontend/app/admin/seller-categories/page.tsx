@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, Settings, Filter, Search } from "lucide-react"
+import { ArrowLeft, Settings, Filter, Search, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,67 +33,56 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-
-// Mock data - va fi înlocuit cu date reale din API în Task #88
-const mockCategories = [
-  { id: 1, name: "Electronice", slug: "electronice" },
-  { id: 2, name: "Îmbrăcăminte", slug: "imbracaminte" },
-  { id: 3, name: "Casă & Grădină", slug: "casa-gradina" },
-  { id: 4, name: "Sport", slug: "sport" },
-  { id: 5, name: "Cărți", slug: "carti" },
-]
-
-const mockSellers = [
-  {
-    seller_id: 1,
-    company_name: "TechStore SRL",
-    categories: [
-      { id: 1, name: "Electronice", slug: "electronice", assigned_at: "2024-01-15T10:00:00Z" },
-      { id: 4, name: "Sport", slug: "sport", assigned_at: "2024-01-20T14:30:00Z" },
-    ],
-  },
-  {
-    seller_id: 2,
-    company_name: "Fashion Boutique",
-    categories: [
-      { id: 2, name: "Îmbrăcăminte", slug: "imbracaminte", assigned_at: "2024-01-10T09:00:00Z" },
-    ],
-  },
-  {
-    seller_id: 3,
-    company_name: "HomeDecor Plus",
-    categories: [
-      { id: 3, name: "Casă & Grădină", slug: "casa-gradina", assigned_at: "2024-01-12T11:15:00Z" },
-    ],
-  },
-  {
-    seller_id: 4,
-    company_name: "Universal Shop",
-    categories: [
-      { id: 1, name: "Electronice", slug: "electronice", assigned_at: "2024-01-18T16:45:00Z" },
-      { id: 2, name: "Îmbrăcăminte", slug: "imbracaminte", assigned_at: "2024-01-18T16:45:00Z" },
-      { id: 5, name: "Cărți", slug: "carti", assigned_at: "2024-01-18T16:45:00Z" },
-    ],
-  },
-  {
-    seller_id: 5,
-    company_name: "BookWorld",
-    categories: [
-      { id: 5, name: "Cărți", slug: "carti", assigned_at: "2024-01-25T08:00:00Z" },
-    ],
-  },
-]
-
-type Seller = typeof mockSellers[0]
-type Category = typeof mockCategories[0]
+import {
+  listSellers,
+  assignSellerCategory,
+  removeSellerCategory,
+  type SellerWithCategories,
+  type SellerAssignedCategory,
+} from "@/lib/api/seller-categories"
+import { listCategories, type Category } from "@/lib/api/categories"
 
 export default function SellerCategoriesPage() {
-  const [sellers, setSellers] = useState<Seller[]>(mockSellers)
+  const [sellers, setSellers] = useState<SellerWithCategories[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false)
-  const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null)
+  const [selectedSeller, setSelectedSeller] = useState<SellerWithCategories | null>(null)
   const [selectedCategories, setSelectedCategories] = useState<number[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Load sellers and categories on mount
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true)
+      
+      console.log("Loading sellers and categories...")
+      
+      const [sellersResponse, categoriesResponse] = await Promise.all([
+        listSellers(1, 100),
+        listCategories(1, 100),
+      ])
+      
+      console.log("Sellers loaded:", sellersResponse)
+      console.log("Categories loaded:", categoriesResponse)
+      
+      setSellers(sellersResponse.items)
+      setCategories(categoriesResponse.items)
+    } catch (error) {
+      console.error("Error loading data:", error)
+      toast.error("Eroare la încărcarea datelor", {
+        description: error instanceof Error ? error.message : "Te rugăm să încerci din nou.",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Filtered sellers based on search and category filter
   const filteredSellers = sellers.filter((seller) => {
@@ -103,7 +93,7 @@ export default function SellerCategoriesPage() {
     return matchesSearch && matchesCategory
   })
 
-  const openManageDialog = (seller: Seller) => {
+  const openManageDialog = (seller: SellerWithCategories) => {
     setSelectedSeller(seller)
     setSelectedCategories(seller.categories.map((cat) => cat.id))
     setIsManageDialogOpen(true)
@@ -117,12 +107,43 @@ export default function SellerCategoriesPage() {
     )
   }
 
-  const handleSaveCategories = () => {
-    // TODO: API call în Task #88
-    console.log("Save categories for seller:", selectedSeller?.seller_id, selectedCategories)
-    setIsManageDialogOpen(false)
-    setSelectedSeller(null)
-    setSelectedCategories([])
+  const handleSaveCategories = async () => {
+    if (!selectedSeller) return
+
+    try {
+      setIsSubmitting(true)
+
+      const currentCategoryIds = selectedSeller.categories.map((cat) => cat.id)
+      const toAdd = selectedCategories.filter((id) => !currentCategoryIds.includes(id))
+      const toRemove = currentCategoryIds.filter((id) => !selectedCategories.includes(id))
+
+      // Adaugă categorii noi
+      for (const categoryId of toAdd) {
+        await assignSellerCategory(selectedSeller.seller_id, categoryId)
+      }
+
+      // Șterge categorii
+      for (const categoryId of toRemove) {
+        await removeSellerCategory(selectedSeller.seller_id, categoryId)
+      }
+
+      // Reload data
+      await loadData()
+
+      toast.success("Categorii actualizate cu succes!", {
+        description: `Asocierile pentru ${selectedSeller.company_name} au fost salvate.`,
+      })
+
+      setIsManageDialogOpen(false)
+      setSelectedSeller(null)
+      setSelectedCategories([])
+    } catch (error) {
+      toast.error("Eroare la salvarea categoriilor", {
+        description: error instanceof Error ? error.message : "Te rugăm să încerci din nou.",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -185,7 +206,7 @@ export default function SellerCategoriesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Toate categoriile</SelectItem>
-                    {mockCategories.map((category) => (
+                    {categories.map((category) => (
                       <SelectItem key={category.id} value={category.id.toString()}>
                         {category.name}
                       </SelectItem>
@@ -210,7 +231,7 @@ export default function SellerCategoriesPage() {
           <Card>
             <CardContent className="p-4">
               <div className="text-center">
-                <div className="text-3xl font-bold text-orange-500">{mockCategories.length}</div>
+                <div className="text-3xl font-bold text-orange-500">{categories.length}</div>
                 <div className="text-sm text-gray-600">Categorii Disponibile</div>
               </div>
             </CardContent>
@@ -233,7 +254,13 @@ export default function SellerCategoriesPage() {
             <CardTitle>Lista Vânzători</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
+            {isLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+                <span className="ml-3 text-gray-600">Se încarcă vânzătorii...</span>
+              </div>
+            ) : (
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>ID</TableHead>
@@ -288,6 +315,7 @@ export default function SellerCategoriesPage() {
                 )}
               </TableBody>
             </Table>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -305,7 +333,7 @@ export default function SellerCategoriesPage() {
 
           <div className="py-4">
             <div className="space-y-4">
-              {mockCategories.map((category) => {
+              {categories.map((category) => {
                 const isAssigned = selectedCategories.includes(category.id)
                 const assignedCategory = selectedSeller?.categories.find((c) => c.id === category.id)
 
@@ -323,6 +351,7 @@ export default function SellerCategoriesPage() {
                       checked={isAssigned}
                       onCheckedChange={() => handleCategoryToggle(category.id)}
                       className="mt-1"
+                      disabled={isSubmitting}
                     />
                     <div className="flex-1">
                       <Label
@@ -354,14 +383,23 @@ export default function SellerCategoriesPage() {
                 setSelectedSeller(null)
                 setSelectedCategories([])
               }}
+              disabled={isSubmitting}
             >
               Anulează
             </Button>
             <Button
               onClick={handleSaveCategories}
               className="bg-orange-500 hover:bg-orange-600"
+              disabled={isSubmitting}
             >
-              Salvează Modificările
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Se salvează...
+                </>
+              ) : (
+                "Salvează Modificările"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

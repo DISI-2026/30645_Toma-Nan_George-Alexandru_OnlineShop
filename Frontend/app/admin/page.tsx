@@ -189,7 +189,7 @@ export default function AdminDashboard() {
                   <CardTitle className="text-sm font-medium">Total Users</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{adminStats.totalUsers.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">{adminStats.totalUsers}</div>
                   <div className="flex items-center text-sm text-green-600">
                     <TrendingUp className="w-4 h-4 mr-1" />
                     +5.2% this month
@@ -202,7 +202,7 @@ export default function AdminDashboard() {
                   <CardTitle className="text-sm font-medium">Active Sellers</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{adminStats.totalSellers.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">{adminStats.totalSellers}</div>
                   <div className="text-sm text-gray-600">
                     {Math.round((adminStats.totalSellers / adminStats.totalUsers) * 100)}% of users
                   </div>
@@ -214,7 +214,7 @@ export default function AdminDashboard() {
                   <CardTitle className="text-sm font-medium">Total Products</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{adminStats.totalProducts.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">{adminStats.totalProducts}</div>
                   <div className="text-sm text-gray-600">
                     Avg {Math.round(adminStats.totalProducts / adminStats.totalSellers)} per seller
                   </div>
