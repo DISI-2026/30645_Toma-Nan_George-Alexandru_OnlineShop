@@ -159,17 +159,14 @@ useEffect(() => {
   // Încarcă profilul seller
   getSellerProfile()
     .then((profile) => {
-      console.log('🔍 SELLER PROFILE:', profile)
-      console.log('🔍 SELLER CATEGORIES:', profile.categories)
       const mappedProfile = mapSellerProfile(profile)
       setSellerInfo(mappedProfile)
       setFormData(mappedProfile)
       setProfileExists(true)
       setCategories(profile.categories || [])
-      console.log('🔍 CATEGORIES SET TO STATE:', profile.categories || [])
     })
     .catch((error) => {
-      console.error('❌ ERROR loading seller profile:', error)
+      console.error('ERROR loading seller profile:', error)
       setProfileExists(false)
     })
 
