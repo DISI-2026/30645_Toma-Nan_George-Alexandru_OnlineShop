@@ -55,6 +55,11 @@ from application.usecases.orders import (
     OrderNotFoundError,
 )
 from application.usecases.sales_stats import InvalidSalesStatsQueryError
+from application.usecases.reviews import (
+    ReviewAlreadyExistsError,
+    ReviewBuyerProfileNotFoundError,
+    ReviewEligibilityError,
+)
 from application.usecases.sellers import (
     AdminSellerCategoryNotFoundError,
     AdminSellerNotFoundError,
@@ -153,6 +158,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     CartProductNotFoundError,
                     CartItemNotFoundError,
                     CartBuyerProfileNotFoundError,
+                    ReviewBuyerProfileNotFoundError,
                 ) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
@@ -193,7 +199,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_409_CONFLICT,
                         detail=str(exc),
                     ) from exc
-                except ReviewReplyAlreadyExistsError as exc:
+                except (ReviewReplyAlreadyExistsError, ReviewAlreadyExistsError) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_409_CONFLICT,
                         detail=str(exc),
@@ -207,6 +213,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     CartQuantityExceedsStockError,
                     CartEmptyError,
                     InsufficientStockError,
+                    ReviewEligibilityError,
                 ) as exc:
                     raise HTTPException(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -328,6 +335,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                 CartProductNotFoundError,
                 CartItemNotFoundError,
                 CartBuyerProfileNotFoundError,
+                ReviewBuyerProfileNotFoundError,
             ) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -358,7 +366,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     status_code=status.HTTP_409_CONFLICT,
                     detail=str(exc),
                 ) from exc
-            except ReviewReplyAlreadyExistsError as exc:
+            except (ReviewReplyAlreadyExistsError, ReviewAlreadyExistsError) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=str(exc),
@@ -372,6 +380,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                 CartQuantityExceedsStockError,
                 CartEmptyError,
                 InsufficientStockError,
+                ReviewEligibilityError,
             ) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

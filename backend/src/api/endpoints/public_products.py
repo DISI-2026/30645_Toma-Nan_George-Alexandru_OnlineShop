@@ -3,14 +3,16 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.dependencies.auth import AuthContext, get_optional_auth_context
+from api.dependencies.auth import AuthContext, get_optional_auth_context, require_roles
 from api.dependencies.db import get_db_session
 from api.exception_handler import handle_route_exceptions
 from application.dtos.products import GetProductResponseDTO, ListProductsQueryDTO, ListProductsResponseDTO
+from application.dtos.reviews import CreateReviewRequestDTO, CreateReviewResponseDTO
 from application.usecases.products import GetProductBySlugUseCase, ListProductsUseCase
+from application.usecases.reviews import CreateReviewUseCase
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -60,3 +62,19 @@ async def get_product_by_slug(
 ) -> GetProductResponseDTO:
     use_case = GetProductBySlugUseCase(session)
     return await use_case.execute(slug)
+
+
+@router.post("/{id}/reviews", response_model=CreateReviewResponseDTO, status_code=status.HTTP_201_CREATED)
+@handle_route_exceptions()
+async def create_product_review(
+    id: int,
+    request: CreateReviewRequestDTO,
+    auth_context: Annotated[AuthContext, Depends(require_roles("buyer"))],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> CreateReviewResponseDTO:
+    use_case = CreateReviewUseCase(session)
+    return await use_case.execute(
+        user_id=auth_context.user_id,
+        product_id=id,
+        request=request,
+    )
