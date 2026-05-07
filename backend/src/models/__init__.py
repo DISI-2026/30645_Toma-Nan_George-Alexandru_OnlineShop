@@ -4,6 +4,7 @@ from .buyer_category_preference import buyer_category_preferences
 from .cart_item import CartItem
 from .cart_session import CartSession
 from .category import Category
+from .notification import Notification, NotificationType
 from .order import Order, OrderStatus
 from .order_item import OrderItem
 from .order_status_history import OrderStatusHistory
@@ -22,6 +23,8 @@ __all__ = [
     "CartItem",
     "CartSession",
     "Category",
+    "Notification",
+    "NotificationType",
     "Order",
     "OrderItem",
     "OrderStatus",
