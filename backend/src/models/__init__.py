@@ -8,6 +8,8 @@ from .order import Order, OrderStatus
 from .order_item import OrderItem
 from .order_status_history import OrderStatusHistory
 from .password_reset_token import PasswordResetToken
+from .price_history import PriceHistory
+from .price_suggestion import PriceSuggestion
 from .product import Product
 from .product_image import ProductImage
 from .review import Review
@@ -27,6 +29,8 @@ __all__ = [
     "OrderStatus",
     "OrderStatusHistory",
     "PasswordResetToken",
+    "PriceHistory",
+    "PriceSuggestion",
     "Product",
     "ProductImage",
     "Review",
