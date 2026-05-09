@@ -21,6 +21,12 @@ class Settings:
     auto_init_db: bool
     reset_db_on_startup: bool
 
+    # Neo4j settings
+    neo4j_uri: str = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+    neo4j_username: str = os.getenv("NEO4J_USERNAME", "neo4j")
+    neo4j_password: str = os.getenv("NEO4J_PASSWORD", "neo4jpwd")
+    neo4j_database: str = os.getenv("NEO4J_DATABASE", "neo4j")
+
     @property
     def seller_media_root(self) -> Path:
         return self.media_root / "sellers"
