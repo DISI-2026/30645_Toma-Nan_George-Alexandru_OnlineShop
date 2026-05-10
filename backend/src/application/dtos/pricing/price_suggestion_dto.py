@@ -10,10 +10,10 @@ class PriceSuggestionDTO(BaseModel):
     product_title: str
     current_price: Decimal
     suggested_price: Decimal
-    change_percent: Decimal | None
+    change_percent: Decimal
     direction: str
-    confidence: Decimal | None
-    reasoning: str | None
+    confidence: Decimal
+    reasoning: str
     demand_trend: str
     data_period_days: int
     insufficient_data: bool

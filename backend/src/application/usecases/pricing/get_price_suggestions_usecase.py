@@ -23,7 +23,7 @@ class GetPriceSuggestionsUseCase:
         self, seller_id: int, product_id: int | None
     ) -> PriceSuggestionsResponseDTO:
         if product_id is not None:
-            products = await self._fetch_single_product(seller_id, product_id)
+            products = [await self._fetch_single_product(seller_id, product_id)]
         else:
             products = await self._fetch_top_products(seller_id)
 
@@ -42,13 +42,13 @@ class GetPriceSuggestionsUseCase:
 
         return PriceSuggestionsResponseDTO(suggestions=suggestions)
 
-    async def _fetch_single_product(self, seller_id: int, product_id: int) -> list[Product]:
+    async def _fetch_single_product(self, seller_id: int, product_id: int) -> Product:
         product = await self._session.get(Product, product_id)
         if product is None:
             raise ProductNotFoundError("Product not found.")
         if product.seller_id != seller_id:
             raise ProductNotOwnedBySellerError("You can only view suggestions for your own products.")
-        return [product]
+        return product
 
     async def _fetch_top_products(self, seller_id: int) -> list[Product]:
         cutoff = datetime.now(timezone.utc) - timedelta(days=30)
