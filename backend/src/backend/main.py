@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 
+from backend.neo4j import Neo4jConnection
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -29,11 +30,18 @@ async def lifespan(app: FastAPI):
     app.state.db_engine = engine
     app.state.db_sessionmaker = session_factory
     app.state.settings = settings
+
+    app.state.neo4j = Neo4jConnection(
+        settings.neo4j_uri, settings.neo4j_username, settings.neo4j_password
+    )
+    await app.state.neo4j.connect()
+
     if settings.reset_db_on_startup:
         await reset_schema(engine)
     elif settings.auto_init_db:
         await initialize_schema(engine)
     yield
+    await app.state.neo4j.close()
     await disconnect(engine)
 
 
