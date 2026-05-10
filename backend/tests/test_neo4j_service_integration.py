@@ -101,7 +101,7 @@ async def test_get_related_products_returns_co_bought_products(neo4j_service: Ne
     await neo4j_service.insert_order(_build_order(buyer_id=2, product_ids=[10, 30]))
     await neo4j_service.insert_order(_build_order(buyer_id=3, product_ids=[10, 40]))
 
-    related = await neo4j_service.get_related_products([10])
+    related = await neo4j_service.get_related_products([10], limit=10)
 
     assert {20, 30, 40}.issubset(set(related))
 
@@ -111,7 +111,7 @@ async def test_get_related_products_excludes_input_product_ids(neo4j_service: Ne
     await neo4j_service.insert_order(_build_order(buyer_id=1, product_ids=[100, 200, 300]))
     await neo4j_service.insert_order(_build_order(buyer_id=2, product_ids=[100, 400]))
 
-    related = await neo4j_service.get_related_products([100, 200])
+    related = await neo4j_service.get_related_products([100, 200], limit=10)
 
     assert 100 not in related
     assert 200 not in related
@@ -123,6 +123,6 @@ async def test_get_related_products_excludes_input_product_ids(neo4j_service: Ne
 async def test_get_related_products_empty_input_returns_empty_list(neo4j_service: Neo4jService):
     await neo4j_service.insert_order(_build_order(buyer_id=1, product_ids=[1, 2]))
 
-    related = await neo4j_service.get_related_products([])
+    related = await neo4j_service.get_related_products([], limit=10)
 
     assert related == []

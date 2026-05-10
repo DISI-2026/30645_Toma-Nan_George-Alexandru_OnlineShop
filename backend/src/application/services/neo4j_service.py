@@ -5,8 +5,8 @@ class Neo4jService:
     def __init__(self, driver):
         self.driver = driver
 
-    async def get_related_products(self, product_ids: list[int]) -> list[int]:
-        if not product_ids:
+    async def get_related_products(self, product_ids: list[int], limit: int) -> list[int]:
+        if not product_ids or limit <= 0:
             return []
 
         query = """
@@ -20,12 +20,18 @@ class Neo4jService:
             MATCH (b)-[bo:Bought]->(other:Product)
             WHERE NOT other.id IN $productIds
 
+            WITH other, max(bo.bought_on) AS last_bought_on
+
             RETURN
             other.id AS product_id
-            ORDER BY bo.bought_on DESC
+            ORDER BY last_bought_on DESC
+            LIMIT $limit
         """
 
-        result = await self.driver.execute_query(query, {"productIds": product_ids})
+        result = await self.driver.execute_query(
+            query,
+            {"productIds": product_ids, "limit": limit},
+        )
         records = result.records
         related_product_ids = [record["product_id"] for record in records]
         return related_product_ids
