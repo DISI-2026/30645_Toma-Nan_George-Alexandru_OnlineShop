@@ -11,17 +11,16 @@ from application.services.neo4j_service import Neo4jService
 from models import Order, OrderItem
 
 
-def _neo4j_env() -> tuple[str, str, str, str | None]:
+def _neo4j_env() -> tuple[str, str, str]:
     uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     username = os.getenv("NEO4J_USERNAME", "neo4j")
     password = os.getenv("NEO4J_PASSWORD", "neo4jpwd")
-    database = os.getenv("NEO4J_DATABASE")
-    return uri, username, password, database
+    return uri, username, password
 
 
 @pytest_asyncio.fixture
 async def neo4j_driver():
-    uri, username, password, _ = _neo4j_env()
+    uri, username, password = _neo4j_env()
     driver = AsyncGraphDatabase.driver(uri, auth=(username, password))
     try:
         await driver.verify_connectivity()
@@ -34,24 +33,20 @@ async def neo4j_driver():
         await driver.close()
 
 
-@pytest_asyncio.fixture(autouse=True)
+@pytest_asyncio.fixture
 async def clean_graph(neo4j_driver):
-    _, _, _, database = _neo4j_env()
-    kwargs = {"database_": database} if database else {}
-    await neo4j_driver.execute_query("MATCH (n) DETACH DELETE n", **kwargs)
+    await neo4j_driver.execute_query("MATCH (n) DETACH DELETE n")
     yield
-    await neo4j_driver.execute_query("MATCH (n) DETACH DELETE n", **kwargs)
+    await neo4j_driver.execute_query("MATCH (n) DETACH DELETE n")
 
 
 @pytest_asyncio.fixture
-async def neo4j_service(neo4j_driver) -> Neo4jService:
+async def neo4j_service(neo4j_driver, clean_graph) -> Neo4jService:
     return Neo4jService(neo4j_driver)
 
 
 async def _query_records(driver, query: str, params: dict | None = None):
-    _, _, _, database = _neo4j_env()
-    kwargs = {"database_": database} if database else {}
-    result = await driver.execute_query(query, params or {}, **kwargs)
+    result = await driver.execute_query(query, params or {})
     return result.records
 
 
@@ -97,13 +92,42 @@ async def test_insert_order_creates_buyer_product_and_bought_edges(neo4j_driver,
 
 @pytest.mark.asyncio
 async def test_get_related_products_returns_co_bought_products(neo4j_service: Neo4jService):
-    await neo4j_service.insert_order(_build_order(buyer_id=1, product_ids=[10, 20]))
-    await neo4j_service.insert_order(_build_order(buyer_id=2, product_ids=[10, 30]))
-    await neo4j_service.insert_order(_build_order(buyer_id=3, product_ids=[10, 40]))
+    await neo4j_service.insert_order(
+        _build_order(
+            buyer_id=1,
+            product_ids=[10, 20],
+            placed_at=datetime(2026, 1, 1, 8, 0, tzinfo=UTC),
+        )
+    )
+    await neo4j_service.insert_order(
+        _build_order(
+            buyer_id=2,
+            product_ids=[10, 30],
+            placed_at=datetime(2026, 1, 2, 8, 0, tzinfo=UTC),
+        )
+    )
+    await neo4j_service.insert_order(
+        _build_order(
+            buyer_id=3,
+            product_ids=[10, 40],
+            placed_at=datetime(2026, 1, 3, 8, 0, tzinfo=UTC),
+        )
+    )
 
     related = await neo4j_service.get_related_products([10])
 
-    assert {20, 30, 40}.issubset(set(related))
+    assert related[:3] == [40, 30, 20]
+
+
+@pytest.mark.asyncio
+async def test_get_related_products_suppresses_duplicates(neo4j_service: Neo4jService):
+    await neo4j_service.insert_order(_build_order(buyer_id=1, product_ids=[1, 99]))
+    await neo4j_service.insert_order(_build_order(buyer_id=2, product_ids=[1, 99]))
+    await neo4j_service.insert_order(_build_order(buyer_id=3, product_ids=[1, 99]))
+
+    related = await neo4j_service.get_related_products([1])
+
+    assert related == [99]
 
 
 @pytest.mark.asyncio
@@ -126,3 +150,12 @@ async def test_get_related_products_empty_input_returns_empty_list(neo4j_service
     related = await neo4j_service.get_related_products([])
 
     assert related == []
+
+
+@pytest.mark.asyncio
+async def test_insert_order_raises_when_items_are_not_eager_loaded():
+    service = Neo4jService(driver=None)
+    order = Order()
+
+    with pytest.raises(ValueError, match="Order.items must be eagerly loaded"):
+        await service.insert_order(order)

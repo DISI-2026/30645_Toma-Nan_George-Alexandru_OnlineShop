@@ -1,4 +1,5 @@
 from models import Order
+from sqlalchemy import inspect
 
 
 class Neo4jService:
@@ -20,9 +21,9 @@ class Neo4jService:
             MATCH (b)-[bo:Bought]->(other:Product)
             WHERE NOT other.id IN $productIds
 
-            RETURN
-            other.id AS product_id
-            ORDER BY bo.bought_on DESC
+            WITH other.id AS product_id, max(bo.bought_on) AS latest_bought_on
+            RETURN product_id
+            ORDER BY latest_bought_on DESC
         """
 
         result = await self.driver.execute_query(query, {"productIds": product_ids})
@@ -31,6 +32,11 @@ class Neo4jService:
         return related_product_ids
 
     async def insert_order(self, order: Order):
+        if "items" in inspect(order).unloaded:
+            raise ValueError(
+                "Order.items must be eagerly loaded before calling insert_order()."
+            )
+
         query = """
             UNWIND $productIds AS productId
 

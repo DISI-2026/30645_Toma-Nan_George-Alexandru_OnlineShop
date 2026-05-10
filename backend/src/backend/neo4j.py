@@ -9,8 +9,11 @@ class Neo4jConnection:
 
         self._driver: AsyncDriver | None = None
 
-    async def connect(self, uri, username, password):
-        self._driver = AsyncGraphDatabase.driver(uri, auth=(username, password))
+    async def connect(self):
+        self._driver = AsyncGraphDatabase.driver(
+            self._uri,
+            auth=(self._username, self._password),
+        )
         await self._driver.verify_connectivity()
         print("Connected to Neo4j database")
 
