@@ -10,15 +10,8 @@ from application.dtos.notifications import (
     NotificationListResponseDTO,
     NotificationReadResponseDTO,
 )
+from application.exceptions import NotificationAccessDeniedError, NotificationNotFoundError
 from models import Notification, NotificationType
-
-
-class NotificationNotFoundError(Exception):
-    pass
-
-
-class NotificationAccessDeniedError(Exception):
-    pass
 
 
 class NotificationService:

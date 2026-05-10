@@ -3,16 +3,23 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.dependencies.auth import AuthContext, get_optional_auth_context, require_roles
 from api.dependencies.db import get_db_session
 from api.exception_handler import handle_route_exceptions
 from application.dtos.products import GetProductResponseDTO, ListProductsQueryDTO, ListProductsResponseDTO
-from application.dtos.reviews import CreateReviewRequestDTO, CreateReviewResponseDTO
+from application.dtos.reviews import (
+    CreateReviewRequestDTO,
+    CreateReviewResponseDTO,
+    ReviewResponseDTO,
+)
 from application.usecases.products import GetProductBySlugUseCase, ListProductsUseCase
 from application.usecases.reviews import CreateReviewUseCase
+from application.usecases.reviews.reply_to_review_usecase import (
+    CreateReviewUseCase as CreateReviewBySlugUseCase,
+)
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -64,17 +71,28 @@ async def get_product_by_slug(
     return await use_case.execute(slug)
 
 
-@router.post("/{id}/reviews", response_model=CreateReviewResponseDTO, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{id}/reviews",
+    response_model=CreateReviewResponseDTO | ReviewResponseDTO,
+    status_code=status.HTTP_201_CREATED,
+)
 @handle_route_exceptions()
 async def create_product_review(
-    id: int,
+    id: str,
     request: CreateReviewRequestDTO,
+    response: Response,
     auth_context: Annotated[AuthContext, Depends(require_roles("buyer"))],
     session: Annotated[AsyncSession, Depends(get_db_session)],
-) -> CreateReviewResponseDTO:
+) -> CreateReviewResponseDTO | ReviewResponseDTO:
+    if not id.isdecimal():
+        use_case = CreateReviewBySlugUseCase(session)
+        review = await use_case.execute(auth_context.user_id, id, request)
+        response.status_code = status.HTTP_200_OK
+        return ReviewResponseDTO.from_review(review)
+
     use_case = CreateReviewUseCase(session)
     return await use_case.execute(
         user_id=auth_context.user_id,
-        product_id=id,
+        product_id=int(id),
         request=request,
     )

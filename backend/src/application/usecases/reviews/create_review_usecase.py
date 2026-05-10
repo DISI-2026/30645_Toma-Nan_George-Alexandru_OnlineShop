@@ -12,20 +12,13 @@ from application.dtos.reviews import (
     CreateReviewResponseDTO,
     ReviewBuyerDTO,
 )
-from application.usecases.products import ProductNotFoundError
+from application.exceptions import (
+    ProductNotFoundError,
+    ReviewAlreadyExistsError,
+    ReviewBuyerProfileNotFoundError,
+    ReviewEligibilityError,
+)
 from models import Buyer, Order, OrderItem, OrderStatus, Product, Review, User
-
-
-class ReviewBuyerProfileNotFoundError(Exception):
-    pass
-
-
-class ReviewEligibilityError(Exception):
-    pass
-
-
-class ReviewAlreadyExistsError(Exception):
-    pass
 
 
 class CreateReviewUseCase:

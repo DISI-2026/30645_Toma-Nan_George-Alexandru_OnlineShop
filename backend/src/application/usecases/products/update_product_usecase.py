@@ -4,26 +4,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.dtos.products import UpdateProductRequestDTO, UpdateProductResponseDTO
+from application.exceptions import (
+    CategoryNotFoundError,
+    InvalidFieldError,
+    ProductNotFoundError,
+    ProductNotOwnedBySellerError,
+)
 from models import Category, Product
-
-
-class ProductNotFoundError(Exception):
-    pass
-
-
-class ProductNotOwnedBySellerError(Exception):
-    pass
-
-
-class CategoryNotFoundError(Exception):
-    pass
-
-
-class InvalidFieldError(Exception):
-    def __init__(self, field: str, message: str):
-        self.field = field
-        self.message = message
-        super().__init__(f"{field}: {message}")
 
 
 class UpdateProductUseCase:

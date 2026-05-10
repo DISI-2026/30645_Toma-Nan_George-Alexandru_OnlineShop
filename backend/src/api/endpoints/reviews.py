@@ -14,7 +14,10 @@ from application.dtos.reviews import (
     ReplyToReviewRequestDTO,
     ReviewResponseDTO,
 )
-from application.usecases.reviews import CreateReviewUseCase, ReplyToReviewUseCase
+from application.usecases.reviews import ReplyToReviewUseCase
+from application.usecases.reviews.reply_to_review_usecase import (
+    CreateReviewUseCase as CreateReviewBySlugUseCase,
+)
 from models import Seller
 
 router = APIRouter(tags=["reviews"])
@@ -28,7 +31,7 @@ async def create_review(
     session: Annotated[AsyncSession, Depends(get_db_session)],
     request: CreateReviewRequestDTO = Body(...),
 ) -> ReviewResponseDTO:
-    use_case = CreateReviewUseCase(session)
+    use_case = CreateReviewBySlugUseCase(session)
     review = await use_case.execute(auth_context.user_id, product_slug, request)
     return ReviewResponseDTO.from_review(review)
 

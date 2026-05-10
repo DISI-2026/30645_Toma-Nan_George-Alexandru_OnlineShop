@@ -9,20 +9,13 @@ from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.dtos.products import CreateProductImagesMetadataRequestDTO
-from application.usecases.products.update_product_usecase import InvalidFieldError
+from application.exceptions import (
+    ImageTooLargeError,
+    InvalidFieldError,
+    InvalidImageFormatError,
+    TooManyImagesError,
+)
 from models import Product, ProductImage
-
-
-class TooManyImagesError(Exception):
-    pass
-
-
-class InvalidImageFormatError(Exception):
-    pass
-
-
-class ImageTooLargeError(Exception):
-    pass
 
 
 class ProcessImagesUseCase:

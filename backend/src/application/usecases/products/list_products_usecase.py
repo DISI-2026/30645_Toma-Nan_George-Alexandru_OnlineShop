@@ -11,9 +11,8 @@ from application.dtos.products import (
     ProductListPaginationDTO,
     ProductListSellerDTO,
 )
+from application.exceptions import InvalidFieldError
 from models import Category, Product, ProductImage, Seller
-
-from .update_product_usecase import InvalidFieldError
 
 
 class ListProductsUseCase:

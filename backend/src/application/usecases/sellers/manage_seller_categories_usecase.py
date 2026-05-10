@@ -12,28 +12,15 @@ from application.dtos.sellers import (
     AdminSellerWithCategoriesDTO,
     SellerCategoryAssignmentResponseDTO,
 )
+from application.exceptions import (
+    AdminSellerCategoryNotFoundError,
+    AdminSellerNotFoundError,
+    SellerCategoryAssignmentAlreadyExistsError,
+    SellerCategoryAssignmentDeleteBlockedError,
+    SellerCategoryAssignmentNotFoundError,
+)
 from models import Category, Product, Seller
 from models.seller_category import seller_categories
-
-
-class AdminSellerNotFoundError(Exception):
-    pass
-
-
-class AdminSellerCategoryNotFoundError(Exception):
-    pass
-
-
-class SellerCategoryAssignmentAlreadyExistsError(Exception):
-    pass
-
-
-class SellerCategoryAssignmentNotFoundError(Exception):
-    pass
-
-
-class SellerCategoryAssignmentDeleteBlockedError(Exception):
-    pass
 
 
 @dataclass(slots=True)

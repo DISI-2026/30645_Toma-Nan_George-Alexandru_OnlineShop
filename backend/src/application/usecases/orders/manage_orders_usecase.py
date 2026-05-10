@@ -28,6 +28,14 @@ from application.dtos.orders import (
     UpdateOrderStatusRequestDTO,
     UpdateOrderStatusResponseDTO,
 )
+from application.exceptions import (
+    BuyerProfileNotFoundError,
+    CartEmptyError,
+    InsufficientStockError,
+    InvalidOrderStatusTransitionError,
+    OrderAccessDeniedError,
+    OrderNotFoundError,
+)
 from application.services.neo4j_service import Neo4jService
 from application.usecases.notifications import NotificationService
 from models import (
@@ -39,30 +47,6 @@ from models import (
     OrderStatusHistory,
     Seller,
 )
-
-
-class OrderNotFoundError(Exception):
-    pass
-
-
-class OrderAccessDeniedError(Exception):
-    pass
-
-
-class InvalidOrderStatusTransitionError(Exception):
-    pass
-
-
-class BuyerProfileNotFoundError(Exception):
-    pass
-
-
-class CartEmptyError(Exception):
-    pass
-
-
-class InsufficientStockError(Exception):
-    pass
 
 
 @dataclass(frozen=True, slots=True)

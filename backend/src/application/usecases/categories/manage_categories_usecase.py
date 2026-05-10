@@ -14,25 +14,14 @@ from application.dtos.categories import (
     CategoryResponseDTO,
     CategoryUpdateRequestDTO,
 )
+from application.exceptions import (
+    CategoryAlreadyExistsError,
+    CategoryDeleteBlockedError,
+    InvalidCategoryFieldError,
+    ManagedCategoryNotFoundError as CategoryNotFoundError,
+)
 from models import Category, Product
 from models.seller_category import seller_categories
-
-
-class CategoryNotFoundError(Exception):
-    pass
-
-
-class CategoryAlreadyExistsError(Exception):
-    pass
-
-
-class CategoryDeleteBlockedError(Exception):
-    pass
-
-
-class InvalidCategoryFieldError(Exception):
-    def __init__(self, field: str, message: str):
-        super().__init__(f"{field}: {message}")
 
 
 @dataclass(frozen=True, slots=True)

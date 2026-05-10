@@ -11,15 +11,8 @@ from application.security import (
     hash_password_reset_token,
     password_matches_minimum_requirements,
 )
+from application.exceptions import InvalidOrExpiredResetTokenError, PasswordDoesNotMatchMinimumRequirementsError
 from models import PasswordResetToken, User
-
-
-class InvalidOrExpiredResetTokenError(Exception):
-    pass
-
-
-class PasswordDoesNotMatchMinimumRequirementsError(Exception):
-    pass
 
 
 class ResetPasswordUseCase:
