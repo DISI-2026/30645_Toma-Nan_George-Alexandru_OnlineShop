@@ -1,11 +1,14 @@
 from models import Order
+from sqlalchemy import inspect
 
 
 class Neo4jService:
     def __init__(self, driver):
         self.driver = driver
 
-    async def get_related_products(self, product_ids: list[int], limit: int) -> list[int]:
+    async def get_related_products(
+        self, product_ids: list[int], limit: int
+    ) -> list[int]:
         if not product_ids or limit <= 0:
             return []
 
@@ -37,6 +40,11 @@ class Neo4jService:
         return related_product_ids
 
     async def insert_order(self, order: Order):
+        if "items" in inspect(order).unloaded:
+            raise ValueError(
+                "Order.items must be eagerly loaded before calling insert_order()."
+            )
+
         query = """
             UNWIND $productIds AS productId
 

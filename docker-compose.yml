@@ -19,11 +19,12 @@ services:
             RESET_DB_ON_STARTUP: "false"
             #Neo4j
             NEO4J_URI: bolt://neo4j:7687
-            NEO4J_USER: neo4j
+            NEO4J_USERNAME: neo4j
             NEO4J_PASSWORD: neo4jpwd
-            NEO4J_DATABASE: neo4j
         depends_on:
             db:
+                condition: service_healthy
+            neo4j:
                 condition: service_healthy
         # Uncomment to persist uploaded files on the host:
         volumes:

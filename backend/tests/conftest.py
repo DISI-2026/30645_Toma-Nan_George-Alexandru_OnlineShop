@@ -96,6 +96,18 @@ async def app(tmp_path: Path):
                 END;
             """)
         )
+        await connection.execute(
+            text("""
+                CREATE TRIGGER IF NOT EXISTS products_price_history
+                AFTER UPDATE OF price ON products
+                FOR EACH ROW
+                WHEN OLD.price != NEW.price
+                BEGIN
+                    INSERT INTO price_history (product_id, old_price, new_price)
+                    VALUES (OLD.id, OLD.price, NEW.price);
+                END;
+            """)
+        )
 
     factory = async_sessionmaker(engine, expire_on_commit=False)
     application.state.db_sessionmaker = factory

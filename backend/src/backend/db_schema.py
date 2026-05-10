@@ -125,6 +125,33 @@ async def _create_triggers(connection: AsyncConnection) -> None:
         """)
     )
 
+    await connection.execute(
+        text("""
+            CREATE OR REPLACE FUNCTION log_price_change()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                IF OLD.price IS DISTINCT FROM NEW.price THEN
+                    INSERT INTO price_history (product_id, old_price, new_price)
+                    VALUES (OLD.id, OLD.price, NEW.price);
+                END IF;
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+        """)
+    )
+
+    await connection.execute(
+        text("DROP TRIGGER IF EXISTS products_price_history ON products;")
+    )
+    await connection.execute(
+        text("""
+            CREATE TRIGGER products_price_history
+            AFTER UPDATE ON products
+            FOR EACH ROW
+            EXECUTE FUNCTION log_price_change();
+        """)
+    )
+
 
 async def initialize_schema(engine: AsyncEngine) -> None:
     async with engine.begin() as connection:
