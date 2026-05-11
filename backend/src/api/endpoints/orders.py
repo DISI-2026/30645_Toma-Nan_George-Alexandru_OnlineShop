@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.dependencies.auth import AuthContext, require_roles
 from api.dependencies.db import get_db_session
+from api.dependencies.neo4j import get_optional_neo4j_service
 from api.exception_handler import handle_route_exceptions
 from application.dtos.orders import (
     BuyerOrderListResponseDTO,
@@ -18,6 +19,7 @@ from application.dtos.orders import (
     UpdateOrderStatusRequestDTO,
     UpdateOrderStatusResponseDTO,
 )
+from application.services.neo4j_service import Neo4jService
 from application.usecases.orders import (
     GetOrderTrackingStatusUseCase,
     GetOrderDetailsUseCase,
@@ -36,9 +38,10 @@ router = APIRouter(tags=["orders"])
 async def place_order(
     auth_context: Annotated[AuthContext, Depends(require_roles("buyer"))],
     session: Annotated[AsyncSession, Depends(get_db_session)],
+    neo4j_service: Annotated[Neo4jService | None, Depends(get_optional_neo4j_service)],
     request: PlaceOrderRequestDTO = Body(...),
 ) -> PlaceOrderResponseDTO:
-    use_case = PlaceOrdersUseCase(session)
+    use_case = PlaceOrdersUseCase(session, neo4j_service)
     return await use_case.execute(auth_context.user_id, request)
 
 

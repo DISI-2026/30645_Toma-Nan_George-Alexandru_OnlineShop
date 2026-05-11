@@ -34,9 +34,7 @@ async def lifespan(app: FastAPI):
     app.state.neo4j = Neo4jConnection(
         settings.neo4j_uri, settings.neo4j_username, settings.neo4j_password
     )
-    await app.state.neo4j.connect(
-        settings.neo4j_uri, settings.neo4j_username, settings.neo4j_password
-    )
+    await app.state.neo4j.connect()
 
     if settings.reset_db_on_startup:
         await reset_schema(engine)
