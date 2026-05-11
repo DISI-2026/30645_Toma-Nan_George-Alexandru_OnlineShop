@@ -275,7 +275,6 @@ export default function SellerProfilePage() {
   //adaugare de produs nou la tabel
   const handleSaveNewProduct = async () => {
   try {
-    // Validare de bază
     if (!newProduct.title.trim()) {
       alert("Titlul produsului este obligatoriu.")
       return
@@ -297,7 +296,6 @@ export default function SellerProfilePage() {
       return
     }
 
-    // Trimite la backend
     const createdProduct = await createProduct(
       {
         title: newProduct.title,
@@ -311,16 +309,14 @@ export default function SellerProfilePage() {
 
     const selectedCategory = categories.find(cat => cat.id === newProduct.category_id.toString())
     
-    // Transformă imaginile - adaugă /media/ prefix ca pentru logo
     const productImages = createdProduct.images?.map((img: any) => {
       const mediaPath = `/media/${img.path}`
       return toBackendMediaUrl(mediaPath)
     }) || []
     
-    // Adaugă produsul în lista locală pentru afișare
     const displayProduct = {
       id: createdProduct.id,
-      slug: (createdProduct as any).slug,  // ← Adaugă slug
+      slug: (createdProduct as any).slug, 
       title: createdProduct.title,
       category: {
         id: (createdProduct as any).category_id,  
@@ -359,10 +355,8 @@ export default function SellerProfilePage() {
   //functie de vizualizare detalii produse
   const handleViewDetails = async (product: any) => {
     try {
-      // Încarcă detaliile complete ale produsului (cu toate imaginile)
       const fullProduct = await getProductById(product.slug || product.id.toString())
       
-      // Transformă produsul pentru modal
       const productForModal = {
         id: fullProduct.id,
         title: fullProduct.title,
@@ -431,7 +425,6 @@ export default function SellerProfilePage() {
     try {
       const fullProduct = await getProductById(product.slug || product.id.toString())
       
-      // Transformă imaginile pentru modal
       const images = fullProduct.images.map((img: any) => ({
         id: img.id,
         url: toBackendMediaUrl(img.url),
@@ -469,13 +462,11 @@ const handleImagesReorder = (reorderedImages: Array<{
     setProductImages(reorderedImages)
     setHasImageChanges(true)
     
-    // Actualizează și în editProductData
     if (editProductData) {
       setEditProductData(prev => prev ? { ...prev, images: reorderedImages } : null)
     }
 }
 
-// Funcția pentru închiderea modalului de editare:
 const handleCloseEditModal = () => {
   if (!isUpdating) {
     setEditingProduct(null)
@@ -483,30 +474,26 @@ const handleCloseEditModal = () => {
     setUpdateSuccessMessage(null)
   }
 }
-// Funcția pentru schimbarea datelor în formular:
+
 const handleEditProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
   if (!editProductData) return
   const { name, value } = e.target
   setEditProductData(prev => prev ? { ...prev, [name]: value } : null)
 }
 
-// Funcția pentru schimbarea categoriei:
 const handleEditCategoryChange = (value: string) => {
   if (!editProductData) return
   setEditProductData(prev => prev ? { ...prev, category_id: parseInt(value) } : null)
 }
 
-// Funcția pentru schimbarea disponibilității:
 const handleEditAvailabilityChange = (value: string) => {
   if (!editProductData) return
   setEditProductData(prev => prev ? { ...prev, is_available: value === "true" } : null)
 }
 
-// Funcția pentru salvarea modificărilor:
 const handleSaveEditProduct = async () => {
   if (!editProductData) return
 
-  // Validări
   if (!editProductData.title.trim() || editProductData.title.trim().length < 3) {
     alert("Titlul produsului trebuie să aibă minim 3 caractere")
     return
@@ -564,7 +551,6 @@ const handleSaveEditProduct = async () => {
     
     await loadProducts()
     
-    // Închide modalul după 2 secunde
     setTimeout(() => {
       handleCloseEditModal()
     }, 2000)
@@ -582,10 +568,8 @@ const handleSaveEditProduct = async () => {
 
   //functie de stergere a unui produs
   const handleDeleteProduct = (id: number) => {
-    // Adăugăm o fereastră mică de confirmare nativă din browser (UX bun)
     if (window.confirm("Ești sigur că vrei să ștergi acest produs?")) {
       
-      // Eliminăm produsul din state-ul curent (păstrăm doar produsele cu ID diferit de cel selectat)
       setProductsList(prev => prev.filter(product => product.id !== id))
     }
   }

@@ -140,12 +140,105 @@ export async function getBuyerOrders(
   }
 }
 
-export async function getSellerOrders(): Promise<any> {
-  const response = await apiClient.get('/sellers/me/orders');
+// Interfețe pentru comenzile seller-ului
+export interface SellerOrderItem {
+  id: number;
+  product_id: number;
+  product_title: string;
+  quantity: number;
+  unit_price: string;
+  subtotal: string;
+}
+
+export interface OrderBuyerSummary {
+  id: number;
+  email: string;
+  full_name: string | null;
+}
+
+export interface SellerOrderListItem {
+  id: number;
+  order_number: string;
+  buyer: OrderBuyerSummary;
+  items: SellerOrderItem[];
+  total: string;
+  status: string;
+  placed_at: string;
+}
+
+export interface SellerOrderListResponse {
+  items: SellerOrderListItem[];
+  page: number;
+  page_size: number;
+  total: number;
+}
+
+export interface OrderDetailsResponse {
+  id: number;
+  order_number: string;
+  buyer: {
+    id: number;
+    email: string;
+    full_name: string | null;
+    phone: string | null;
+    address: string | null;
+  };
+  seller: {
+    id: number;
+    company_name: string;
+    email: string;
+    phone: string | null;
+    address: string | null;
+    tax_id: string | null;
+  };
+  seller_id: number;
+  delivery_address: any;
+  notes: string | null;
+  items: SellerOrderItem[];
+  total: string;
+  status: string;
+  placed_at: string;
+  updated_at: string;
+  status_history: OrderStatusHistory[];
+}
+
+export interface UpdateOrderStatusRequest {
+  status: string;
+}
+
+export interface UpdateOrderStatusResponse {
+  id: number;
+  status: string;
+  valid_next_transitions: string[];
+}
+
+export async function getSellerOrders(
+  status?: string,
+  page: number = 1,
+  pageSize: number = 20
+): Promise<SellerOrderListResponse> {
+  try {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    params.append('page', page.toString());
+    params.append('page_size', pageSize.toString());
+    
+    const response = await apiClient.get(`/sellers/me/orders?${params.toString()}`);
+    return response.data;
+  } catch (error: any) {
+    console.error('Failed to fetch seller orders:', error);
+    throw error;
+  }
+}
+
+export async function updateOrderStatus(
+  orderId: number,
+  status: string
+): Promise<UpdateOrderStatusResponse> {
+  const response = await apiClient.patch(`/orders/${orderId}/status`, { status });
   return response.data;
 }
 
 export async function saveOrderIds(orderIds: number[]): Promise<void> {
-
-  console.log('Order IDs saved to backend automatically:', orderIds);
+  
 }
