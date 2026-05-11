@@ -62,14 +62,15 @@ class GetProductRecommendationsUseCase:
         return list((await self._session.execute(statement)).scalars())
 
     async def _get_popular_product_ids(self, limit: int) -> list[int]:
+        total_quantity = func.sum(OrderItem.quantity).label("total_quantity")
         statement = (
-            select(OrderItem.product_id)
+            select(OrderItem.product_id, total_quantity)
             .join(Order, Order.id == OrderItem.order_id)
             .group_by(OrderItem.product_id)
-            .order_by(func.sum(OrderItem.quantity).desc(), func.max(Order.placed_at).desc())
+            .order_by(total_quantity.desc(), func.max(Order.placed_at).desc())
             .limit(limit)
         )
-        return list((await self._session.execute(statement)).scalars())
+        return [product_id for product_id, _ in (await self._session.execute(statement)).all()]
 
     async def _load_product_cards_by_ids(
         self,
