@@ -40,7 +40,7 @@ export default function SellerProducts({ products, onViewDetails, onDeleteProduc
           {products && products.length > 0 ? (
             products.map((product) => (
               <tr key={product.id} className="hover:bg-slate-50 transition-colors">
-                <td className="p-4 text-slate-900 font-medium">{product.title}</td>
+                <td className="p-4 text-slate-900 font-medium">{product.title} </td>
                 <td className="p-4 text-right">
                   <div className="flex items-center justify-end gap-2">
                     {/* buton afisare pop-up detalii produs*/}

@@ -108,23 +108,124 @@ export async function createProduct(
   return await response.json()
 }
 
-// Lista produsele unui seller specific
-export async function listSellerProducts(sellerId: number): Promise<ProductListResponse> {
-  const params = new URLSearchParams()
-  params.set("seller_id", String(sellerId))
-  params.set("page_size", "100")
-
+export async function listAllSellerProducts(sellerId: number): Promise<ProductListResponse> {
   try {
-    const response = await fetch(`${API_URL}/api/v1/products?${params.toString()}`, {
+    const paramsAvailable = new URLSearchParams()
+    paramsAvailable.set("seller_id", String(sellerId))
+    paramsAvailable.set("page_size", "100")
+    paramsAvailable.set("is_available", "true")
+
+    const responseAvailable = await fetch(`${API_URL}/api/v1/products?${paramsAvailable.toString()}`, {
       credentials: "include",
     })
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}))
-      throw new Error(data.message || data.detail || "Eroare la preluarea produselor")
+    
+    if (!responseAvailable.ok) {
+      throw new Error("Eroare la preluarea produselor disponibile")
     }
-    return response.json() as Promise<ProductListResponse>
+    
+    const dataAvailable = await responseAvailable.json() as ProductListResponse
+
+    const paramsUnavailable = new URLSearchParams()
+    paramsUnavailable.set("seller_id", String(sellerId))
+    paramsUnavailable.set("page_size", "100")
+    paramsUnavailable.set("is_available", "false")
+
+    const responseUnavailable = await fetch(`${API_URL}/api/v1/products?${paramsUnavailable.toString()}`, {
+      credentials: "include",
+    })
+    
+    if (!responseUnavailable.ok) {
+      throw new Error("Eroare la preluarea produselor indisponibile")
+    }
+    
+    const dataUnavailable = await responseUnavailable.json() as ProductListResponse
+
+    return {
+      data: [...dataAvailable.data, ...dataUnavailable.data],
+      pagination: {
+        ...dataAvailable.pagination,
+        total_items: dataAvailable.pagination.total_items + dataUnavailable.pagination.total_items,
+      }
+    }
   } catch (error) {
     if (error instanceof Error) throw error
     throw new Error("Eroare de retea. Verifica conexiunea la internet.")
   }
+}
+
+
+
+//edit product
+export interface UpdateProductPayload {
+  title?: string
+  description?: string
+  price?: string
+  stock?: string
+  category_id?: number
+  is_available?: boolean
+}
+
+export async function updateProduct(
+  productId: number,
+  payload: UpdateProductPayload
+): Promise<Product> {
+  const body: Record<string, any> = {}
+  
+  if (payload.title !== undefined) body.title = payload.title.trim()
+  if (payload.description !== undefined) body.description = payload.description.trim()
+  if (payload.price !== undefined) body.price = parseFloat(payload.price)
+  if (payload.stock !== undefined) body.stock = parseInt(payload.stock)
+  if (payload.category_id !== undefined) body.category_id = payload.category_id
+  if (payload.is_available !== undefined) body.is_available = payload.is_available
+
+  const response = await fetch(`${API_URL}/api/v1/sellers/me/products/${productId}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => null)
+    const errorMessage = 
+      data?.detail || 
+      data?.error?.message || 
+      "Nu am putut actualiza produsul."
+    throw new Error(errorMessage)
+  }
+
+  return await response.json()
+}
+
+export interface UpdateProductImagePayload {
+  id: number
+  display_order: number
+  is_thumbnail: boolean
+}
+
+export async function updateProductImages(
+  productId: number,
+  images: UpdateProductImagePayload[]
+): Promise<Product> {
+  const response = await fetch(`${API_URL}/api/v1/sellers/me/products/${productId}/images`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ images }),
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => null)
+    const errorMessage = 
+      data?.detail || 
+      data?.error?.message || 
+      "Nu am putut actualiza imaginile produsului."
+    throw new Error(errorMessage)
+  }
+
+  return await response.json()
 }
