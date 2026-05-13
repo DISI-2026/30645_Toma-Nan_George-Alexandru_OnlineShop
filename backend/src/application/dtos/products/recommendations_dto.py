@@ -1,7 +1,10 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
+from .list_products_dto import ProductListItemDTO
 
-class GetRecommendationsRequest(BaseModel):
-    user_id: int
-    page: int = 1
-    page_size: int = 10
+
+class GetProductRecommendationsResponseDTO(BaseModel):
+    recommendations: list[ProductListItemDTO]
+    source: Literal["personalized", "popular"]

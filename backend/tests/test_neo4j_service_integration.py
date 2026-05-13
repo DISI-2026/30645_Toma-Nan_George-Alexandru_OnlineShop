@@ -50,7 +50,9 @@ async def _query_records(driver, query: str, params: dict | None = None):
     return result.records
 
 
-def _build_order(buyer_id: int, product_ids: list[int], placed_at: datetime | None = None) -> Order:
+def _build_order(
+    buyer_id: int, product_ids: list[int], placed_at: datetime | None = None
+) -> Order:
     order = Order(
         buyer_id=buyer_id,
         placed_at=placed_at or datetime.now(UTC),
@@ -60,8 +62,14 @@ def _build_order(buyer_id: int, product_ids: list[int], placed_at: datetime | No
 
 
 @pytest.mark.asyncio
-async def test_insert_order_creates_buyer_product_and_bought_edges(neo4j_driver, neo4j_service: Neo4jService):
-    order = _build_order(buyer_id=101, product_ids=[11, 22, 33], placed_at=datetime(2026, 1, 15, 10, 0, tzinfo=UTC))
+async def test_insert_order_creates_buyer_product_and_bought_edges(
+    neo4j_driver, neo4j_service: Neo4jService
+):
+    order = _build_order(
+        buyer_id=101,
+        product_ids=[11, 22, 33],
+        placed_at=datetime(2026, 1, 15, 10, 0, tzinfo=UTC),
+    )
 
     await neo4j_service.insert_order(order)
 
@@ -91,7 +99,9 @@ async def test_insert_order_creates_buyer_product_and_bought_edges(neo4j_driver,
 
 
 @pytest.mark.asyncio
-async def test_get_related_products_returns_co_bought_products(neo4j_service: Neo4jService):
+async def test_get_related_products_returns_co_bought_products(
+    neo4j_service: Neo4jService,
+):
     await neo4j_service.insert_order(
         _build_order(
             buyer_id=1,
@@ -114,7 +124,7 @@ async def test_get_related_products_returns_co_bought_products(neo4j_service: Ne
         )
     )
 
-    related = await neo4j_service.get_related_products([10])
+    related = await neo4j_service.get_related_products([10], limit=10)
 
     assert related[:3] == [40, 30, 20]
 
@@ -125,17 +135,21 @@ async def test_get_related_products_suppresses_duplicates(neo4j_service: Neo4jSe
     await neo4j_service.insert_order(_build_order(buyer_id=2, product_ids=[1, 99]))
     await neo4j_service.insert_order(_build_order(buyer_id=3, product_ids=[1, 99]))
 
-    related = await neo4j_service.get_related_products([1])
+    related = await neo4j_service.get_related_products([1], limit=10)
 
     assert related == [99]
 
 
 @pytest.mark.asyncio
-async def test_get_related_products_excludes_input_product_ids(neo4j_service: Neo4jService):
-    await neo4j_service.insert_order(_build_order(buyer_id=1, product_ids=[100, 200, 300]))
+async def test_get_related_products_excludes_input_product_ids(
+    neo4j_service: Neo4jService,
+):
+    await neo4j_service.insert_order(
+        _build_order(buyer_id=1, product_ids=[100, 200, 300])
+    )
     await neo4j_service.insert_order(_build_order(buyer_id=2, product_ids=[100, 400]))
 
-    related = await neo4j_service.get_related_products([100, 200])
+    related = await neo4j_service.get_related_products([100, 200], limit=10)
 
     assert 100 not in related
     assert 200 not in related
@@ -144,10 +158,12 @@ async def test_get_related_products_excludes_input_product_ids(neo4j_service: Ne
 
 
 @pytest.mark.asyncio
-async def test_get_related_products_empty_input_returns_empty_list(neo4j_service: Neo4jService):
+async def test_get_related_products_empty_input_returns_empty_list(
+    neo4j_service: Neo4jService,
+):
     await neo4j_service.insert_order(_build_order(buyer_id=1, product_ids=[1, 2]))
 
-    related = await neo4j_service.get_related_products([])
+    related = await neo4j_service.get_related_products([], limit=10)
 
     assert related == []
 

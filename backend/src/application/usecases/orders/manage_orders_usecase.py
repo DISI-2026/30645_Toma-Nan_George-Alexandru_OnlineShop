@@ -28,6 +28,7 @@ from application.dtos.orders import (
     UpdateOrderStatusRequestDTO,
     UpdateOrderStatusResponseDTO,
 )
+from application.services.neo4j_service import Neo4jService
 from application.usecases.notifications import NotificationService
 from models import (
     Buyer,
@@ -384,8 +385,13 @@ class UpdateOrderStatusUseCase(GetOrderDetailsUseCase):
 
 
 class PlaceOrdersUseCase:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        neo4j_service: Neo4jService | None = None,
+    ) -> None:
         self._session = session
+        self._neo4j_service = neo4j_service
 
     async def execute(self, user_id: int, request: PlaceOrderRequestDTO) -> PlaceOrderResponseDTO:
         buyer_id = await self._get_buyer_id(user_id)
@@ -460,6 +466,10 @@ class PlaceOrdersUseCase:
             .order_by(Order.id.asc())
         )
         persisted_orders = list((await self._session.execute(statement)).scalars())
+
+        if self._neo4j_service is not None:
+            for persisted_order in persisted_orders:
+                await self._neo4j_service.insert_order(persisted_order)
 
         return PlaceOrderResponseDTO(
             orders=[self._to_checkout_order(order) for order in persisted_orders],

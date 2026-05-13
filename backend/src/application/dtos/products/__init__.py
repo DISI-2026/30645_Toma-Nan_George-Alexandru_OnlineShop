@@ -19,6 +19,7 @@ from .list_products_dto import (
     ProductListPaginationDTO,
     ProductListSellerDTO,
 )
+from .recommendations_dto import GetProductRecommendationsResponseDTO
 from .update_product_images_dto import (
     UpdateProductImageDTO,
     UpdateProductImagesRequestDTO,
@@ -36,6 +37,7 @@ __all__ = [
     "GetProductResponseDTO",
     "ListProductsQueryDTO",
     "ListProductsResponseDTO",
+    "GetProductRecommendationsResponseDTO",
     "ProductCategoryPublicDTO",
     "ProductImageDTO",
     "ProductImagePublicDTO",
