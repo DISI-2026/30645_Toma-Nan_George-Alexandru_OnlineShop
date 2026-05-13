@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Star, Shield, Loader2, ShoppingCart } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -13,7 +12,9 @@ import { getUser } from "@/lib/auth-utils"
 import { addToCart } from "@/lib/api/cart"
 import { useCart } from "@/contexts/CartContext"
 import Navbar from "@/components/Navbar"
+import ProductRecommendations from "@/components/ProductRecommendations"
 import { useProducts } from "@/hooks/use-products"
+import { useRecommendations } from "@/hooks/use-recommendations"
 import type { ProductListItem, ProductListQuery } from "@/lib/types/product"
 
 const SORT_OPTIONS = [
@@ -163,6 +164,9 @@ export default function BuyerHomepage() {
   }
 
   const { products, pagination, isLoading, error } = useProducts(query)
+  
+  // Fetch recommendations - 8 produse pentru carusel
+  const { data: recommendationsData, isLoading: recommendationsLoading, error: recommendationsError } = useRecommendations({ limit: 8 })
 
   useEffect(() => {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
@@ -307,6 +311,18 @@ export default function BuyerHomepage() {
                 <span className="text-sm text-slate-700 ml-2">Toți vânzătorii sunt verificați înainte de a lista produse.</span>
               </div>
             </div>
+
+            {/* Secțiune Recomandări */}
+            {recommendationsData && recommendationsData.recommendations.length > 0 && (
+              <div className="mb-8">
+                <ProductRecommendations
+                  products={recommendationsData.recommendations}
+                  source={recommendationsData.source}
+                  isLoading={recommendationsLoading}
+                  error={recommendationsError}
+                />
+              </div>
+            )}
 
             {isLoading && (
               <div className="flex justify-center items-center py-24">
