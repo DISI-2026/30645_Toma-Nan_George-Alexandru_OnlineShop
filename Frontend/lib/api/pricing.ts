@@ -27,3 +27,17 @@ export async function getPriceSuggestions(productId?: string): Promise<PriceSugg
   const response = await apiClient.get("/pricing/suggestions", { params })
   return response.data
 }
+
+/**
+ * Aplică prețul sugerat pentru un produs
+ * @param productId - ID-ul produsului
+ * @param suggestedPrice - Prețul sugerat de AI
+ */
+export async function applyPriceSuggestion(
+  productId: string, 
+  suggestedPrice: number
+): Promise<void> {
+  await apiClient.patch(`/sellers/me/products/${productId}`, {
+    price: suggestedPrice
+  })
+}

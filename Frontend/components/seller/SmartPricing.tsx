@@ -5,7 +5,8 @@ import { TrendingUp, TrendingDown, Minus, ArrowUp, ArrowDown, Activity, AlertCir
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { getPriceSuggestions, type PriceSuggestion } from "@/lib/api/pricing"
+import { Button } from "@/components/ui/button"
+import { getPriceSuggestions, applyPriceSuggestion, type PriceSuggestion } from "@/lib/api/pricing"
 
 // MOCK DATA pentru testare - ȘTERGE DUPĂ IMPLEMENTAREA BACKEND-ULUI (Task #170)
 const MOCK_SUGGESTIONS: PriceSuggestion[] = [
@@ -94,6 +95,9 @@ export default function SmartPricing() {
   // După implementarea backend-ului (Task #170), decomentează loadSuggestions() și șterge MOCK_SUGGESTIONS
   const [suggestions, setSuggestions] = useState<PriceSuggestion[]>(MOCK_SUGGESTIONS)
   const [isLoading, setIsLoading] = useState(false) // false pentru a afișa imediat mock data
+  const [appliedSuggestions, setAppliedSuggestions] = useState<Set<string>>(new Set())
+  const [ignoredSuggestions, setIgnoredSuggestions] = useState<Set<string>>(new Set())
+  const [isApplying, setIsApplying] = useState<{ [key: string]: boolean }>({})
 
   useEffect(() => {
     // MOCK: Comentat pentru testare
@@ -111,6 +115,46 @@ export default function SmartPricing() {
       setIsLoading(false)
     }
   }
+
+  const handleApplyPrice = async (suggestion: PriceSuggestion) => {
+    const confirmed = window.confirm(
+      `Sigur vrei să schimbi prețul de la ${formatPrice(suggestion.current_price)} ` +
+      `la ${formatPrice(suggestion.suggested_price)}?`
+    )
+    
+    if (!confirmed) return
+    
+    try {
+      setIsApplying(prev => ({ ...prev, [suggestion.product_id]: true }))
+      
+      await applyPriceSuggestion(suggestion.product_id, suggestion.suggested_price)
+      
+      setAppliedSuggestions(prev => new Set(prev).add(suggestion.product_id))
+      alert("Prețul a fost actualizat cu succes!")
+      
+      // Reîncarcă sugestiile pentru a obține date actualizate
+      await loadSuggestions()
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Eroare la aplicarea prețului.")
+    } finally {
+      setIsApplying(prev => ({ ...prev, [suggestion.product_id]: false }))
+    }
+  }
+
+  const handleIgnoreSuggestion = (suggestion: PriceSuggestion) => {
+    const confirmed = window.confirm(
+      `Sigur vrei să ignori această sugestie pentru "${suggestion.product_title}"?`
+    )
+    
+    if (confirmed) {
+      setIgnoredSuggestions(prev => new Set(prev).add(suggestion.product_id))
+    }
+  }
+
+  // Filtrează sugestiile ignorate
+  const visibleSuggestions = suggestions.filter(
+    s => !ignoredSuggestions.has(s.product_id)
+  )
 
   const getDirectionIcon = (direction: string) => {
     switch (direction) {
@@ -212,13 +256,16 @@ export default function SmartPricing() {
     )
   }
 
-  if (suggestions.length === 0) {
+  if (visibleSuggestions.length === 0) {
     return (
       <div className="bg-white border rounded-xl shadow-sm p-8 text-center">
         <Sparkles className="w-12 h-12 text-slate-300 mx-auto mb-4" />
         <p className="text-slate-600 text-lg font-medium">Nu există sugestii de preț disponibile</p>
         <p className="text-slate-500 text-sm mt-2">
-          Sugestiile vor apărea după ce produsele tale acumulează suficiente date de vânzări.
+          {ignoredSuggestions.size > 0 
+            ? "Toate sugestiile au fost ignorate sau aplicate."
+            : "Sugestiile vor apărea după ce produsele tale acumulează suficiente date de vânzări."
+          }
         </p>
       </div>
     )
@@ -239,19 +286,30 @@ export default function SmartPricing() {
 
       {/* Grid de sugestii */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {suggestions.map((suggestion) => (
-          <Card key={suggestion.product_id} className="shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start gap-4">
-                <CardTitle className="text-lg font-semibold text-slate-900 flex-1">
-                  {suggestion.product_title}
-                </CardTitle>
-                <div className={`flex items-center gap-1 px-3 py-1 rounded-full border font-semibold ${getDirectionColor(suggestion.direction)}`}>
-                  {getDirectionIcon(suggestion.direction)}
-                  <span className="text-sm">{getDirectionText(suggestion.direction)}</span>
+        {visibleSuggestions.map((suggestion) => {
+          const isApplied = appliedSuggestions.has(suggestion.product_id)
+          const isApplyingNow = isApplying[suggestion.product_id]
+          
+          return (
+            <Card key={suggestion.product_id} className="shadow-sm hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start gap-4">
+                  <CardTitle className="text-lg font-semibold text-slate-900 flex-1">
+                    {suggestion.product_title}
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    {isApplied && (
+                      <Badge className="bg-green-100 text-green-700 border-green-300">
+                        ✓ Aplicat
+                      </Badge>
+                    )}
+                    <div className={`flex items-center gap-1 px-3 py-1 rounded-full border font-semibold ${getDirectionColor(suggestion.direction)}`}>
+                      {getDirectionIcon(suggestion.direction)}
+                      <span className="text-sm">{getDirectionText(suggestion.direction)}</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
+              </CardHeader>
 
             <CardContent className="space-y-4">
               {/* Warning pentru date insuficiente */}
@@ -332,9 +390,31 @@ export default function SmartPricing() {
                   Analiză: {suggestion.data_period_days} zile
                 </span>
               </div>
+
+              {/* Butoane de acțiune */}
+              {!isApplied && (
+                <div className="flex gap-2 pt-4 border-t border-slate-200 mt-4">
+                  <Button 
+                    onClick={() => handleApplyPrice(suggestion)}
+                    disabled={isApplyingNow}
+                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
+                  >
+                    {isApplyingNow ? "Se aplică..." : "Aplică prețul sugerat"}
+                  </Button>
+                  <Button 
+                    onClick={() => handleIgnoreSuggestion(suggestion)}
+                    disabled={isApplyingNow}
+                    variant="outline"
+                    className="flex-1 border-slate-300 hover:bg-slate-50"
+                  >
+                    Ignoră
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
-        ))}
+        )
+        })}
       </div>
     </div>
   )
