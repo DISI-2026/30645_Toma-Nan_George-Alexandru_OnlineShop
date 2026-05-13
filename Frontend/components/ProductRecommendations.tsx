@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Star, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { getImageUrl } from "@/lib/utils"
 
 interface ProductListCategory {
   id: number
@@ -173,7 +174,7 @@ export default function ProductRecommendations({
                   {/* Imagine produs */}
                   <div className="relative mb-3">
                     <img
-                      src={product.thumbnail_url || "/placeholder.svg"}
+                      src={getImageUrl(product.thumbnail_url)}
                       alt={product.title}
                       className="w-full h-40 object-cover rounded-md"
                     />
