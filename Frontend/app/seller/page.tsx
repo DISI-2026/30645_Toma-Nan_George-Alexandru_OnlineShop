@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from "react"
 
 import Link from "next/link"
-import { Search, ShoppingCart, User, Menu, Phone, Mail, FileText, Calendar, Package, ShoppingBag, Plus, LogOut, X, Camera, Edit, PackagePlus, Upload, Eye } from "lucide-react"
+import { Search, ShoppingCart, User, Menu, Phone, Mail, FileText, Calendar, Package, ShoppingBag, Plus, LogOut, X, Camera, Edit, PackagePlus, Upload, Eye, MessageSquare } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 import SellerProducts from "@/components/seller/Products"
 import SellerOrders from "@/components/seller/Orders"
+import SellerReviews from "@/components/seller/Reviews"
 
 import ViewProductModal from "@/components/seller/modals/ViewProductModal"
 import AddProductModal from "@/components/seller/modals/AddProductModal"
@@ -516,6 +517,9 @@ useEffect(() => {
                   <TabsTrigger value="orders" className="flex items-center gap-2">
                     <ShoppingBag className="w-4 h-4" /> Orders
                   </TabsTrigger>
+                  <TabsTrigger value="reviews" className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4" /> Reviews
+                  </TabsTrigger>
                 </TabsList>
 
                 {/* buton add product pt products tab activ */}
@@ -541,6 +545,9 @@ useEffect(() => {
               </TabsContent>
               <TabsContent value="orders">
                 <SellerOrders />
+              </TabsContent>
+              <TabsContent value="reviews">
+                <SellerReviews />
               </TabsContent>
             </Tabs>
           </div>
