@@ -4,12 +4,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.dtos.auth import LoginRequestDTO, LoginResultDTO, LoggedInUserDTO
+from application.exceptions import InvalidCredentialsError
 from application.security import create_access_token, verify_password
 from models import User
-
-
-class InvalidCredentialsError(Exception):
-    pass
 
 
 class LoginUseCase:

@@ -12,9 +12,8 @@ from application.dtos.products import (
     ProductImagePublicDTO,
     ProductSellerPublicDTO,
 )
+from application.exceptions import ProductNotFoundError
 from models import Product
-
-from .update_product_usecase import ProductNotFoundError
 
 
 class GetProductBySlugUseCase:

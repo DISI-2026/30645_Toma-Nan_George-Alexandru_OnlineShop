@@ -5,9 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from application.dtos.products import UpdateProductImagesRequestDTO
+from application.exceptions import (
+    InvalidFieldError,
+    ProductNotFoundError,
+    ProductNotOwnedBySellerError,
+)
 from models import Product, ProductImage
-
-from .update_product_usecase import InvalidFieldError, ProductNotFoundError, ProductNotOwnedBySellerError
 
 
 class UpdateProductImagesUseCase:

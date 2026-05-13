@@ -9,72 +9,56 @@ from typing import Any, ParamSpec, TypeVar, cast
 from fastapi import HTTPException, status
 from pydantic import ValidationError
 
-from backend.api.errors import APIError
-from application.usecases.auth import (
-    EmailAlreadyRegisteredError,
-    InvalidOrExpiredResetTokenError,
-    InvalidBuyerPreferenceCategoriesError,
-    InvalidCredentialsError,
-    PasswordDoesNotMatchMinimumRequirementsError,
-)
-from application.usecases.categories import (
-    CategoryAlreadyExistsError as ManagedCategoryAlreadyExistsError,
-    CategoryDeleteBlockedError,
-    CategoryNotFoundError as ManagedCategoryNotFoundError,
-    InvalidCategoryFieldError,
-)
-from application.usecases.cart import (
+from application.exceptions import (
+    AdminSellerCategoryNotFoundError,
+    AdminSellerNotFoundError,
+    BuyerProfileNotFoundError,
     CartBuyerProfileNotFoundError,
+    CartEmptyError,
     CartItemNotFoundError,
     CartProductNotFoundError,
     CartQuantityExceedsStockError,
-)
-from application.usecases.notifications import (
-    NotificationAccessDeniedError,
-    NotificationNotFoundError,
-)
-from api.dependencies.seller import SellerNotFoundError
-from application.usecases.products import (
+    CategoryAlreadyExistsError,
+    CategoryDeleteBlockedError,
     CategoryNotFoundError,
     DuplicateSlugError,
+    EmailAlreadyRegisteredError,
     ImageTooLargeError,
+    InsufficientStockError,
+    InvalidBuyerPreferenceCategoriesError,
+    InvalidCategoryFieldError,
+    InvalidCredentialsError,
     InvalidFieldError,
     InvalidImageFormatError,
+    InvalidLogoTypeError,
+    InvalidOrderStatusTransitionError,
+    InvalidOrExpiredResetTokenError,
+    InvalidSalesStatsQueryError,
+    LogoTooLargeError,
+    ManagedCategoryNotFoundError,
+    NotificationAccessDeniedError,
+    NotificationNotFoundError,
+    OrderAccessDeniedError,
+    OrderNotFoundError,
+    PasswordDoesNotMatchMinimumRequirementsError,
     ProductNotFoundError,
     ProductNotOwnedBySellerError,
-    SellerCategoryMismatchError,
-    TooManyImagesError,
-)
-from application.usecases.reviews import (
     ReviewAlreadyExistsError,
+    ReviewBuyerProfileNotFoundError,
     ReviewEligibilityError,
     ReviewNotFoundError,
     ReviewNotOwnedBySellerError,
     ReviewReplyAlreadyExistsError,
-)
-from application.usecases.orders import (
-    BuyerProfileNotFoundError,
-    CartEmptyError,
-    InsufficientStockError,
-    InvalidOrderStatusTransitionError,
-    OrderAccessDeniedError,
-    OrderNotFoundError,
-)
-from application.usecases.sales_stats import InvalidSalesStatsQueryError
-from application.usecases.reviews import (
-    ReviewAlreadyExistsError,
-    ReviewBuyerProfileNotFoundError,
-    ReviewEligibilityError,
-)
-from application.usecases.sellers import (
-    AdminSellerCategoryNotFoundError,
-    AdminSellerNotFoundError,
-    SellerProfileAlreadyExistsError,
-    SellerProfileNotFoundError,
     SellerCategoryAssignmentAlreadyExistsError,
     SellerCategoryAssignmentDeleteBlockedError,
     SellerCategoryAssignmentNotFoundError,
+    SellerCategoryMismatchError,
+    SellerProfileAlreadyExistsError,
+    SellerProfileNotFoundError,
+    TooManyImagesError,
 )
+from api.dependencies.seller import SellerNotFoundError
+from backend.api.errors import APIError
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +119,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail=str(exc),
                     ) from exc
-                except ManagedCategoryAlreadyExistsError as exc:
+                except CategoryAlreadyExistsError as exc:
                     raise HTTPException(
                         status_code=status.HTTP_409_CONFLICT,
                         detail=str(exc),
@@ -219,17 +203,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                         status_code=status.HTTP_409_CONFLICT,
                         detail=str(exc),
                     ) from exc
-                except ReviewAlreadyExistsError as exc:
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail=str(exc),
-                    ) from exc
                 except InvalidOrderStatusTransitionError as exc:
-                    raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        detail=str(exc),
-                    ) from exc
-                except ReviewEligibilityError as exc:
                     raise HTTPException(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                         detail=str(exc),
@@ -248,6 +222,8 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     InvalidFieldError,
                     InvalidImageFormatError,
                     ImageTooLargeError,
+                    InvalidLogoTypeError,
+                    LogoTooLargeError,
                     TooManyImagesError,
                     InvalidCategoryFieldError,
                     InvalidSalesStatsQueryError,
@@ -321,7 +297,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=str(exc),
                 ) from exc
-            except ManagedCategoryAlreadyExistsError as exc:
+            except CategoryAlreadyExistsError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=str(exc),
@@ -405,17 +381,7 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                     status_code=status.HTTP_409_CONFLICT,
                     detail=str(exc),
                 ) from exc
-            except ReviewAlreadyExistsError as exc:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=str(exc),
-                ) from exc
             except InvalidOrderStatusTransitionError as exc:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=str(exc),
-                ) from exc
-            except ReviewEligibilityError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=str(exc),
@@ -434,6 +400,8 @@ def handle_route_exceptions() -> Callable[[Callable[P, R]], Callable[P, R]]:
                 InvalidFieldError,
                 InvalidImageFormatError,
                 ImageTooLargeError,
+                InvalidLogoTypeError,
+                LogoTooLargeError,
                 TooManyImagesError,
                 InvalidCategoryFieldError,
                 InvalidSalesStatsQueryError,

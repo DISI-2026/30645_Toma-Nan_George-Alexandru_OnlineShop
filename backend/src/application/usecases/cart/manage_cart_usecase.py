@@ -12,23 +12,13 @@ from application.dtos.cart import (
     CartItemResponseDTO,
     CartResponseDTO,
 )
+from application.exceptions import (
+    CartBuyerProfileNotFoundError,
+    CartItemNotFoundError,
+    CartProductNotFoundError,
+    CartQuantityExceedsStockError,
+)
 from models import Buyer, CartItem, CartSession, Product
-
-
-class CartBuyerProfileNotFoundError(Exception):
-    pass
-
-
-class CartProductNotFoundError(Exception):
-    pass
-
-
-class CartItemNotFoundError(Exception):
-    pass
-
-
-class CartQuantityExceedsStockError(Exception):
-    pass
 
 
 class GetCartUseCase:

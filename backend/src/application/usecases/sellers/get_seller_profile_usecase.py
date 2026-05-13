@@ -5,11 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.dtos.sellers import SellerProfilePublicDTO, SellerProfilePrivateDTO
 from application.dtos.sellers.get_seller_profile_dto import SellerCategoryDTO
+from application.exceptions import SellerProfileNotFoundError
 from models import Seller, User
-
-
-class SellerProfileNotFoundError(Exception):
-    pass
 
 
 class GetSellerProfileUseCase:

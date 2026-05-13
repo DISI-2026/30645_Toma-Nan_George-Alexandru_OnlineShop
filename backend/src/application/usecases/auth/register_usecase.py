@@ -10,16 +10,9 @@ from application.dtos.auth import (
     RegisterSellerRequestDTO,
     RegisteredUserDTO,
 )
+from application.exceptions import EmailAlreadyRegisteredError, InvalidBuyerPreferenceCategoriesError
 from application.security import hash_password_pbkdf2
 from models import Buyer, Category, Seller, User, UserRole
-
-
-class EmailAlreadyRegisteredError(Exception):
-    pass
-
-
-class InvalidBuyerPreferenceCategoriesError(Exception):
-    pass
 
 
 class RegisterUseCase:

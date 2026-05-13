@@ -15,11 +15,8 @@ from application.dtos.sales_stats import (
     SalesStatsResponseDTO,
     SalesStatsSeriesItemDTO,
 )
+from application.exceptions import InvalidSalesStatsQueryError
 from models import Category, Order, OrderItem, OrderStatus, Product
-
-
-class InvalidSalesStatsQueryError(Exception):
-    pass
 
 
 class GetSalesStatsUseCase:

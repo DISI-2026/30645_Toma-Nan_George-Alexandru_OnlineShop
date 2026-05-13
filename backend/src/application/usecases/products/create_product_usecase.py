@@ -6,24 +6,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.dtos.products import CreateProductRequestDTO
+from application.exceptions import (
+    CategoryNotFoundError,
+    DuplicateSlugError,
+    InvalidFieldError,
+    SellerCategoryMismatchError,
+)
 from models import Category, Product, Seller
 from models.seller_category import seller_categories
-from .update_product_usecase import CategoryNotFoundError
-
-
-class SellerCategoryMismatchError(Exception):
-    pass
-
-
-class DuplicateSlugError(Exception):
-    pass
-
-
-class InvalidFieldError(Exception):
-    def __init__(self, field: str, message: str):
-        self.field = field
-        self.message = message
-        super().__init__(f"{field}: {message}")
 
 
 class CreateProductUseCase:

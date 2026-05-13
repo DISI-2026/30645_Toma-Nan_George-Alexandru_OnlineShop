@@ -7,28 +7,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from application.dtos.reviews import CreateReviewRequestDTO, ReplyToReviewRequestDTO
+from application.exceptions import (
+    ReviewAlreadyExistsError,
+    ReviewEligibilityError,
+    ReviewNotFoundError,
+    ReviewNotOwnedBySellerError,
+    ReviewReplyAlreadyExistsError,
+)
 from application.usecases.notifications import NotificationService
 from models import Buyer, Order, OrderItem, OrderStatus, Product, Review, Seller
-
-
-class ReviewNotFoundError(Exception):
-    pass
-
-
-class ReviewNotOwnedBySellerError(Exception):
-    pass
-
-
-class ReviewReplyAlreadyExistsError(Exception):
-    pass
-
-
-class ReviewAlreadyExistsError(Exception):
-    pass
-
-
-class ReviewEligibilityError(Exception):
-    pass
 
 
 class ReplyToReviewUseCase:
@@ -97,7 +84,7 @@ class CreateReviewUseCase:
             user_id=user_id,
             product_id=product.id,
             rating=request.rating,
-            comment=request.comment,
+            comment=request.comment.strip() if request.comment is not None else None,
         )
         self._session.add(review)
         await self._session.flush()

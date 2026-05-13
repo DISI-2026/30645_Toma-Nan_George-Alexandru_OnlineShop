@@ -10,6 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.dtos.sellers import CreateSellerProfileRequestDTO, CreateSellerProfileResponseDTO
 from application.dtos.sellers.get_seller_profile_dto import SellerCategoryDTO
+from application.exceptions import (
+    InvalidFieldError,
+    InvalidLogoTypeError,
+    LogoTooLargeError,
+    SellerProfileAlreadyExistsError,
+)
 from models import Seller, User
 
 ALLOWED_LOGO_TYPES: Final[dict[str, str]] = {
@@ -17,25 +23,6 @@ ALLOWED_LOGO_TYPES: Final[dict[str, str]] = {
     "image/png": ".png",
     "image/webp": ".webp",
 }
-
-
-class SellerProfileAlreadyExistsError(Exception):
-    pass
-
-
-class InvalidLogoTypeError(Exception):
-    pass
-
-
-class LogoTooLargeError(Exception):
-    pass
-
-
-class InvalidFieldError(Exception):
-    def __init__(self, field: str, message: str):
-        self.field = field
-        self.message = message
-        super().__init__(f"{field}: {message}")
 
 
 class CreateSellerProfileUseCase:
