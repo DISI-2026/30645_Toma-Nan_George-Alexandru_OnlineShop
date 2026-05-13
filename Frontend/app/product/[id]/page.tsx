@@ -9,11 +9,13 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useProduct } from "@/hooks/use-product"
+import { useRecommendations } from "@/hooks/use-recommendations"
 import { toast } from "sonner"
 import { addToCart, getCart } from "@/lib/api/cart"
 import { getImageUrl } from "@/lib/utils"
 import { useCart } from "@/contexts/CartContext"
 import Navbar from "@/components/Navbar"
+import ProductRecommendations from "@/components/ProductRecommendations"
 import ReviewForm from "@/components/ReviewForm"
 import ReviewList from "@/components/ReviewList"
 import { isOutOfStock, getDiscountedPrice } from "@/lib/types/product"
@@ -112,6 +114,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const router = useRouter()
   const user = getUser()
   const { refreshCart } = useCart()
+  
+  // Fetch recommendations - 8 produse pentru carusel
+  const { data: recommendationsData, isLoading: recommendationsLoading, error: recommendationsError } = useRecommendations({ limit: 8 })
 
   useEffect(() => {
     if (!id) return
@@ -374,6 +379,19 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Secțiune Recomandări - "Clienții au mai cumpărat" */}
+        {recommendationsData && recommendationsData.recommendations.length > 0 && (
+          <div className="mt-12">
+            <ProductRecommendations
+              products={recommendationsData.recommendations}
+              source={recommendationsData.source}
+              isLoading={recommendationsLoading}
+              error={recommendationsError}
+              title="Clienții au mai cumpărat"
+            />
+          </div>
+        )}
       </div>
     </div>
   )
