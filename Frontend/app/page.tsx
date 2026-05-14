@@ -9,6 +9,7 @@ import { Slider } from "@/components/ui/slider"
 import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
 import { getUser } from "@/lib/auth-utils"
+import { getImageUrl } from "@/lib/utils"
 import { addToCart } from "@/lib/api/cart"
 import { useCart } from "@/contexts/CartContext"
 import Navbar from "@/components/Navbar"
@@ -87,7 +88,7 @@ function ProductCard({ product, onAddToCart }: {
         <CardContent className="p-4 flex flex-col h-full">
           <div className="relative mb-3">
             <img
-              src={product.thumbnail_url || "/placeholder.svg"}
+              src={getImageUrl(product.thumbnail_url)}
               alt={product.title}
               className={`w-full h-48 object-cover rounded-md ${isOutOfStock ? 'grayscale' : ''}`}
             />
