@@ -16,7 +16,7 @@ from application.dtos.reviews import (
     ReviewResponseDTO,
 )
 from application.usecases.products import GetProductBySlugUseCase, ListProductsUseCase
-from application.usecases.reviews import CreateReviewUseCase
+from application.usecases.reviews import CreateReviewUseCase, ListProductReviewsUseCase
 from application.usecases.reviews.reply_to_review_usecase import (
     CreateReviewUseCase as CreateReviewBySlugUseCase,
 )
@@ -69,6 +69,17 @@ async def get_product_by_slug(
 ) -> GetProductResponseDTO:
     use_case = GetProductBySlugUseCase(session)
     return await use_case.execute(slug)
+
+
+@router.get("/{id}/reviews", response_model=list[ReviewResponseDTO])
+@handle_route_exceptions()
+async def list_product_reviews(
+    id: str,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> list[ReviewResponseDTO]:
+    use_case = ListProductReviewsUseCase(session)
+    reviews = await use_case.execute(id)
+    return [ReviewResponseDTO.from_review(review) for review in reviews]
 
 
 @router.post(

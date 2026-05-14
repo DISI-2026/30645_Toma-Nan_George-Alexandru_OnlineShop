@@ -108,6 +108,7 @@ async def seed_review_context(session_factory: async_sessionmaker[AsyncSession])
             "seller_user_id": seller_user.id,
             "admin_user_id": admin_user.id,
             "product_id": product.id,
+            "product_slug": product.slug,
         }
 
 
@@ -260,3 +261,74 @@ async def test_create_review_validation_errors(
     )
     assert invalid_comment.status_code == 400
     assert invalid_comment.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_list_product_reviews_returns_reviews_with_optional_reply(
+    client: AsyncClient,
+    session_factory: async_sessionmaker[AsyncSession],
+):
+    ids = await seed_review_context(session_factory)
+    create_response = await client.post(
+        f"/api/v1/products/{ids['product_id']}/reviews",
+        cookies=auth_cookies(ids["buyer_user_id"], "buyer"),
+        json={"rating": 5, "comment": "Excellent product!"},
+    )
+    assert create_response.status_code == 201
+    created_review_id = create_response.json()["id"]
+
+    async with session_factory() as session:
+        review = await session.get(Review, created_review_id)
+        assert review is not None
+        review.seller_reply = "Thanks for your feedback."
+        await session.commit()
+
+    response = await client.get(f"/api/v1/products/{ids['product_id']}/reviews")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["id"] == created_review_id
+    assert payload[0]["rating"] == 5
+    assert payload[0]["comment"] == "Excellent product!"
+    assert payload[0]["seller_reply"] is None
+
+
+@pytest.mark.asyncio
+async def test_list_product_reviews_supports_slug_and_returns_reply_metadata(
+    client: AsyncClient,
+    session_factory: async_sessionmaker[AsyncSession],
+):
+    ids = await seed_review_context(session_factory)
+    create_response = await client.post(
+        f"/api/v1/products/{ids['product_slug']}/reviews",
+        cookies=auth_cookies(ids["buyer_user_id"], "buyer"),
+        json={"rating": 4, "comment": "Good value."},
+    )
+    assert create_response.status_code == 200
+    created_review_id = create_response.json()["id"]
+
+    reply_response = await client.post(
+        f"/api/v1/reviews/{created_review_id}/reply",
+        cookies=auth_cookies(ids["seller_user_id"], "seller"),
+        json={"comment": "Thanks for your feedback."},
+    )
+    assert reply_response.status_code == 200
+
+    response = await client.get(f"/api/v1/products/{ids['product_slug']}/reviews")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["id"] == created_review_id
+    assert payload[0]["seller_reply"] is not None
+    assert payload[0]["seller_reply"]["comment"] == "Thanks for your feedback."
+    assert payload[0]["seller_reply"]["replied_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_list_product_reviews_returns_404_for_missing_product(client: AsyncClient):
+    response = await client.get("/api/v1/products/missing-product/reviews")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "NOT_FOUND"
