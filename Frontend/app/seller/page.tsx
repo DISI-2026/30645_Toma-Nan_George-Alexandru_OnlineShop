@@ -17,6 +17,7 @@ import ViewProductModal from "@/components/seller/modals/ViewProductModal"
 import AddProductModal from "@/components/seller/modals/AddProductModal"
 import EditProfileModal from "@/components/seller/modals/EditProfileModal"
 import EditProductModal from "@/components/seller/modals/EditProductModal"
+
 import {
   createSellerProfile,
   getSellerProfile,
@@ -24,8 +25,10 @@ import {
   updateSellerProfile,
   type SellerProfile,
 } from "@/lib/api/seller"
-import { createProduct, listSellerProducts, getProductById } from "@/lib/api/products"
+import { createProduct, listAllSellerProducts, getProductById, updateProduct, type UpdateProductPayload, updateProductImages } from "@/lib/api/products"
 import { listCategories } from "@/lib/api/categories"
+
+import type { Product } from "@/lib/types/product"
 
 interface SellerInfo {
   company_name: string
@@ -118,9 +121,6 @@ export default function SellerProfilePage() {
     }
   }
   
-  // Adaugă un state pentru a păstra File object-ul
-  const [logoFile, setLogoFile] = useState<File | null>(null)
-
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -143,7 +143,6 @@ export default function SellerProfilePage() {
 
   ////////// ADAUGARE DE PRODUSE //////////
   const [images, setImages] = useState<File[]>([])
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
@@ -154,63 +153,90 @@ export default function SellerProfilePage() {
   const [isSavingProduct, setIsSavingProduct] = useState(false)
 
   
-useEffect(() => {
-  getSellerProfile()
-    .then((profile) => {
-      const mappedProfile = mapSellerProfile(profile)
-      setSellerInfo(mappedProfile)
-      setFormData(mappedProfile)
-      setProfileExists(true)
+  useEffect(() => {
+    getSellerProfile()
+      .then((profile) => {
+        const mappedProfile = mapSellerProfile(profile)
+        setSellerInfo(mappedProfile)
+        setFormData(mappedProfile)
+        setProfileExists(true)
+        
+        return listAllSellerProducts(profile.id)  // ← Schimbat aici
+      })
+      .then((productsResponse) => {
+        const transformedProducts = productsResponse.data.map((product) => ({
+          id: product.id,
+          slug: product.slug,
+          title: product.title,
+          category: product.category,  
+          price: product.price.toString(),
+          stock: product.stock.toString(),
+          description: '', 
+          images: product.thumbnail_url ? [toBackendMediaUrl(product.thumbnail_url)] : [],
+          is_available: product.is_available
+        }))
+        setProductsList(transformedProducts)
+      })
+      .catch((error) => {
+        console.error('ERROR loading seller profile:', error)
+
+        if (error.message.includes('UNAUTHORIZED') || error.message.includes('access token')) {
+          alert('Sesiunea ta a expirat. Te rugăm să te loghezi din nou.')
+          window.location.href = '/login'
+          return
+        }
+        setProfileExists(false)
+      })
+  }, [])
+
+
+  const loadProducts = async () => {
+    try {
+      const profile = await getSellerProfile()
+      const productsResponse = await listAllSellerProducts(profile.id) 
       
-      return listSellerProducts(profile.id)
-    })
-    .then((productsResponse) => {
       const transformedProducts = productsResponse.data.map((product) => ({
         id: product.id,
-        slug: product.slug,  // ← Adaugă slug pentru a putea încărca detalii
+        slug: product.slug,
         title: product.title,
         category: product.category,  
         price: product.price.toString(),
         stock: product.stock.toString(),
         description: '', 
-        images: product.thumbnail_url ? [toBackendMediaUrl(product.thumbnail_url)] : []
+        images: product.thumbnail_url ? [toBackendMediaUrl(product.thumbnail_url)] : [],
+        is_available: product.is_available
       }))
+      
       setProductsList(transformedProducts)
-    })
-    .catch((error) => {
-      console.error('ERROR loading seller profile:', error)
-
-      if (error.message.includes('UNAUTHORIZED') || error.message.includes('access token')) {
-        alert('Sesiunea ta a expirat. Te rugăm să te loghezi din nou.')
-        window.location.href = '/login'
-        return
-      }
-      setProfileExists(false)
-    })
-}, [])
-
-
-
-
-  // Încarcă categoriile când se deschide modal-ul de adăugare produs
-  const handleOpenAddProductModal = async () => {
-    setIsAddProductModalOpen(true)
-    setIsLoadingCategories(true)
-    try {
-      const response = await listCategories(1, 100)
-      // Transformă categoriile în formatul așteptat de modal
-      const formattedCategories = response.items.map(cat => ({
-        id: cat.id.toString(),
-        name: cat.name
-      }))
-      setCategories(formattedCategories)
     } catch (error) {
-      console.error('Eroare la încărcarea categoriilor:', error)
-      alert('Nu am putut încărca categoriile. Te rog încearcă din nou.')
-    } finally {
-      setIsLoadingCategories(false)
+      console.error('Error loading products:', error)
+      alert('Nu am putut reîncărca lista de produse.')
     }
   }
+
+
+
+  const handleOpenAddProductModal = async () => {
+    setIsAddProductModalOpen(true)
+    
+    if (categories.length === 0) {
+      setIsLoadingCategories(true)
+      try {
+        const response = await listCategories(1, 100)
+        const formattedCategories = response.items.map(cat => ({
+          id: cat.id.toString(),
+          name: cat.name
+        }))
+        setCategories(formattedCategories)
+      } catch (error) {
+        console.error('Eroare la încărcarea categoriilor:', error)
+        alert('Nu am putut încărca categoriile. Te rog încearcă din nou.')
+      } finally {
+        setIsLoadingCategories(false)
+      }
+    }
+  }
+
 
   //adaugare imagini pentru produse
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -249,7 +275,6 @@ useEffect(() => {
   //adaugare de produs nou la tabel
   const handleSaveNewProduct = async () => {
   try {
-    // Validare de bază
     if (!newProduct.title.trim()) {
       alert("Titlul produsului este obligatoriu.")
       return
@@ -271,7 +296,6 @@ useEffect(() => {
       return
     }
 
-    // Trimite la backend
     const createdProduct = await createProduct(
       {
         title: newProduct.title,
@@ -285,16 +309,14 @@ useEffect(() => {
 
     const selectedCategory = categories.find(cat => cat.id === newProduct.category_id.toString())
     
-    // Transformă imaginile - adaugă /media/ prefix ca pentru logo
     const productImages = createdProduct.images?.map((img: any) => {
       const mediaPath = `/media/${img.path}`
       return toBackendMediaUrl(mediaPath)
     }) || []
     
-    // Adaugă produsul în lista locală pentru afișare
     const displayProduct = {
       id: createdProduct.id,
-      slug: (createdProduct as any).slug,  // ← Adaugă slug
+      slug: (createdProduct as any).slug, 
       title: createdProduct.title,
       category: {
         id: (createdProduct as any).category_id,  
@@ -333,10 +355,8 @@ useEffect(() => {
   //functie de vizualizare detalii produse
   const handleViewDetails = async (product: any) => {
     try {
-      // Încarcă detaliile complete ale produsului (cu toate imaginile)
       const fullProduct = await getProductById(product.slug || product.id.toString())
       
-      // Transformă produsul pentru modal
       const productForModal = {
         id: fullProduct.id,
         title: fullProduct.title,
@@ -357,22 +377,190 @@ useEffect(() => {
   }
 
   ///////// EDITARE PRODUS //////////
-  const [isEditProductModalOpen, setIsEditProductModalOpen] = useState(false)
-  const [productToEdit, setProductToEdit] = useState<any>(null)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [editProductData, setEditProductData] = useState<{
+    id: number
+    title: string
+    category_id: number
+    price: string
+    stock: string
+    description: string
+    is_available: boolean
+    images?: Array<{  
+      id: number
+      url: string
+      is_thumbnail: boolean
+      display_order: number
+    }>
+  } | null>(null)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [updateSuccessMessage, setUpdateSuccessMessage] = useState<string | null>(null)
+  const [productImages, setProductImages] = useState<Array<{
+    id: number
+    url: string
+    is_thumbnail: boolean
+    display_order: number
+  }>>([])
+  const [hasImageChanges, setHasImageChanges] = useState(false)
 
-  const handleEditProduct = (product: any) => {
-    setProductToEdit(product)
-    setIsEditProductModalOpen(true)
+
+  const handleEditProduct = async (product: any) => {
+    if (categories.length === 0) {
+      setIsLoadingCategories(true)
+      try {
+        const response = await listCategories(1, 100)
+        const formattedCategories = response.items.map(cat => ({
+          id: cat.id.toString(),
+          name: cat.name
+        }))
+        setCategories(formattedCategories)
+      } catch (error) {
+        console.error('Eroare la încărcarea categoriilor:', error)
+        alert('Nu am putut încărca categoriile.')
+      } finally {
+        setIsLoadingCategories(false)
+      }
+    }
+
+    try {
+      const fullProduct = await getProductById(product.slug || product.id.toString())
+      
+      const images = fullProduct.images.map((img: any) => ({
+        id: img.id,
+        url: toBackendMediaUrl(img.url),
+        is_thumbnail: img.is_thumbnail,
+        display_order: img.order
+      })).sort((a: any, b: any) => a.display_order - b.display_order)
+      
+      setProductImages(images)
+      setHasImageChanges(false)
+      
+      setEditingProduct(fullProduct)
+      setEditProductData({
+        id: fullProduct.id,
+        title: fullProduct.title,
+        category_id: fullProduct.category.id,
+        price: fullProduct.price.toString(),
+        stock: fullProduct.stock.toString(),
+        description: fullProduct.description || "",
+        is_available: fullProduct.is_available ?? true,
+        images: images
+      })
+      setUpdateSuccessMessage(null)
+    } catch (error) {
+      console.error('Error loading product details:', error)
+      alert('Nu am putut încărca detaliile produsului.')
+    }
   }
 
-  const handleSaveEditedProduct = (updatedProduct: any) => {
-    setProductsList(prev =>
-      prev.map(p => p.id === updatedProduct.id ? updatedProduct : p)
-    )
-    setIsEditProductModalOpen(false)
-    setProductToEdit(null)
+const handleImagesReorder = (reorderedImages: Array<{
+    id: number
+    url: string
+    is_thumbnail: boolean
+    display_order: number
+}>) => {
+    setProductImages(reorderedImages)
+    setHasImageChanges(true)
+    
+    if (editProductData) {
+      setEditProductData(prev => prev ? { ...prev, images: reorderedImages } : null)
+    }
+}
+
+const handleCloseEditModal = () => {
+  if (!isUpdating) {
+    setEditingProduct(null)
+    setEditProductData(null)
+    setUpdateSuccessMessage(null)
+  }
+}
+
+const handleEditProductChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  if (!editProductData) return
+  const { name, value } = e.target
+  setEditProductData(prev => prev ? { ...prev, [name]: value } : null)
+}
+
+const handleEditCategoryChange = (value: string) => {
+  if (!editProductData) return
+  setEditProductData(prev => prev ? { ...prev, category_id: parseInt(value) } : null)
+}
+
+const handleEditAvailabilityChange = (value: string) => {
+  if (!editProductData) return
+  setEditProductData(prev => prev ? { ...prev, is_available: value === "true" } : null)
+}
+
+const handleSaveEditProduct = async () => {
+  if (!editProductData) return
+
+  if (!editProductData.title.trim() || editProductData.title.trim().length < 3) {
+    alert("Titlul produsului trebuie să aibă minim 3 caractere")
+    return
   }
 
+  if (!editProductData.description.trim() || editProductData.description.trim().length < 10) {
+    alert("Descrierea produsului trebuie să aibă minim 10 caractere")
+    return
+  }
+
+  const price = parseFloat(editProductData.price)
+  if (isNaN(price) || price <= 0) {
+    alert("Prețul trebuie să fie un număr pozitiv")
+    return
+  }
+
+  const stock = parseInt(editProductData.stock)
+  if (isNaN(stock) || stock < 0) {
+    alert("Stocul trebuie să fie un număr pozitiv sau 0")
+    return
+  }
+
+  if (!editProductData.category_id) {
+    alert("Selectează o categorie")
+    return
+  }
+
+  setIsUpdating(true)
+  setUpdateSuccessMessage(null)
+
+  try {
+    const payload: UpdateProductPayload = {
+      title: editProductData.title,
+      description: editProductData.description,
+      price: editProductData.price,
+      stock: editProductData.stock,
+      category_id: editProductData.category_id,
+      is_available: editProductData.is_available,
+    }
+
+    await updateProduct(editProductData.id, payload)
+
+    if (hasImageChanges && productImages.length > 0) {
+      const imagesPayload = productImages.map(img => ({
+        id: img.id,
+        display_order: img.display_order,
+        is_thumbnail: img.is_thumbnail
+      }))
+      
+      await updateProductImages(editProductData.id, imagesPayload)
+    }
+    
+    setUpdateSuccessMessage("Produsul a fost actualizat cu succes!")
+    setHasImageChanges(false)
+    
+    await loadProducts()
+    
+    setTimeout(() => {
+      handleCloseEditModal()
+    }, 2000)
+  } catch (error) {
+    console.error("Error updating product:", error)
+    alert(error instanceof Error ? error.message : "Eroare la actualizarea produsului")
+  } finally {
+    setIsUpdating(false)
+  }
+}
   ///////// STERGERE PRODUS //////////
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index))
@@ -380,10 +568,8 @@ useEffect(() => {
 
   //functie de stergere a unui produs
   const handleDeleteProduct = (id: number) => {
-    // Adăugăm o fereastră mică de confirmare nativă din browser (UX bun)
     if (window.confirm("Ești sigur că vrei să ștergi acest produs?")) {
       
-      // Eliminăm produsul din state-ul curent (păstrăm doar produsele cu ID diferit de cel selectat)
       setProductsList(prev => prev.filter(product => product.id !== id))
     }
   }
@@ -588,13 +774,22 @@ useEffect(() => {
         />
       )}
 
-      {isEditProductModalOpen && productToEdit && (
+      {editingProduct && editProductData && (
         <EditProductModal
-          product={productToEdit}
-          onClose={() => { setIsEditProductModalOpen(false); setProductToEdit(null) }}
-          onSave={handleSaveEditedProduct}
+          product={editProductData}
+          categories={categories}
+          isLoadingCategories={isLoadingCategories}
+          isSaving={isUpdating}
+          successMessage={updateSuccessMessage}
+          onClose={handleCloseEditModal}
+          onSave={handleSaveEditProduct}
+          onProductChange={handleEditProductChange}
+          onCategoryChange={handleEditCategoryChange}
+          onAvailabilityChange={handleEditAvailabilityChange}
+          onImagesReorder={handleImagesReorder}
         />
       )}
+
     </div>
   )
 }
