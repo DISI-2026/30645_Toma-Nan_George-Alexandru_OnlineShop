@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from "react"
 
 import Link from "next/link"
-import { Search, ShoppingCart, User, Menu, Phone, Mail, FileText, Calendar, Package, ShoppingBag, Plus, LogOut, X, Camera, Edit, PackagePlus, Upload, Eye, MessageSquare } from "lucide-react"
+import { Search, ShoppingCart, User, Menu, Phone, Mail, FileText, Calendar, Package, ShoppingBag, Plus, LogOut, X, Camera, Edit, PackagePlus, Upload, Eye, MessageSquare, Sparkles } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import SellerProducts from "@/components/seller/Products"
 import SellerOrders from "@/components/seller/Orders"
 import SellerReviews from "@/components/seller/Reviews"
+import SmartPricing from "@/components/seller/SmartPricing"
 
 import ViewProductModal from "@/components/seller/modals/ViewProductModal"
 import AddProductModal from "@/components/seller/modals/AddProductModal"
@@ -706,6 +707,9 @@ const handleSaveEditProduct = async () => {
                   <TabsTrigger value="reviews" className="flex items-center gap-2">
                     <MessageSquare className="w-4 h-4" /> Reviews
                   </TabsTrigger>
+                  <TabsTrigger value="pricing" className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4" /> Smart Pricing
+                  </TabsTrigger>
                 </TabsList>
 
                 {/* buton add product pt products tab activ */}
@@ -734,6 +738,9 @@ const handleSaveEditProduct = async () => {
               </TabsContent>
               <TabsContent value="reviews">
                 <SellerReviews />
+              </TabsContent>
+              <TabsContent value="pricing">
+                <SmartPricing />
               </TabsContent>
             </Tabs>
           </div>
