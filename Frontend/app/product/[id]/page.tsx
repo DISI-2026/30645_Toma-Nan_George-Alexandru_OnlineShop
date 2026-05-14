@@ -25,19 +25,32 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 interface Review {
   id: number
+  user_id: number
   rating: number
   comment: string | null
-  buyer: { id: number; full_name: string | null; avatar_url: string | null }
   created_at: string
-  seller_reply: string | null
+  seller_reply: { comment: string; replied_at: string } | null
+  // Adăugăm buyer pentru compatibilitate cu ReviewList
+  buyer: { id: number; full_name: string | null; avatar_url: string | null }
 }
 
 async function fetchReviews(slug: string): Promise<{ data: Review[]; total: number }> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/products/${slug}/reviews?page=1&page_size=10`)
+    const res = await fetch(`${API_URL}/api/v1/products/${slug}/reviews`)
     if (!res.ok) return { data: [], total: 0 }
     const json = await res.json()
-    return { data: json.data ?? [], total: json.pagination?.total_items ?? 0 }
+    
+    // Mapăm datele pentru a adăuga buyer object
+    const mappedReviews = (json.data ?? json).map((review: any) => ({
+      ...review,
+      buyer: {
+        id: review.user_id,
+        full_name: null,  // Backend nu returnează numele
+        avatar_url: null
+      }
+    }))
+    
+    return { data: mappedReviews, total: mappedReviews.length }
   } catch {
     return { data: [], total: 0 }
   }

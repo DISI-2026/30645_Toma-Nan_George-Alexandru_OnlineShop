@@ -28,8 +28,8 @@ api_router.include_router(notifications_router)
 api_router.include_router(orders_router)
 api_router.include_router(pricing_router)
 api_router.include_router(products_router)
+api_router.include_router(reviews_router)  # Moved BEFORE public_products_router to avoid route conflicts
 api_router.include_router(public_products_router)
 api_router.include_router(recommendations_router)
-api_router.include_router(reviews_router)
 api_router.include_router(sellers_router)
 

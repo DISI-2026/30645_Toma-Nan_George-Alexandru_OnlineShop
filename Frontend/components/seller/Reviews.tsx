@@ -21,74 +21,14 @@ import {
 } from "@/components/ui/card"
 import { getSellerReviews, replyToReview, type Review } from "@/lib/api/reviews"
 
-// Mock data pentru testare - ȘTERGE DUPĂ IMPLEMENTAREA BACKEND-ULUI (Task #122)
-const MOCK_REVIEWS: Review[] = [
-  {
-    id: 1,
-    product_id: 101,
-    product_title: "Wireless Headphones Pro",
-    buyer_name: "Maria Popescu",
-    rating: 5,
-    comment: "Produsul este excelent! Calitatea sunetului este impresionantă și sunt foarte confortabile. Recomand cu încredere!",
-    created_at: "2024-05-10T14:30:00Z",
-    seller_reply: null
-  },
-  {
-    id: 2,
-    product_id: 102,
-    product_title: "USB-C Cable 2m",
-    buyer_name: "Ion Ionescu",
-    rating: 4,
-    comment: "Cablul este de calitate bună, dar aș fi preferat să fie puțin mai lung. În rest, funcționează perfect.",
-    created_at: "2024-05-12T10:15:00Z",
-    seller_reply: null
-  },
-  {
-    id: 3,
-    product_id: 103,
-    product_title: "Phone Stand Adjustable",
-    buyer_name: "Elena Dumitrescu",
-    rating: 3,
-    comment: "Produsul este ok, dar plasticul pare cam fragil. Sper să reziste în timp.",
-    created_at: "2024-05-13T16:45:00Z",
-    seller_reply: null
-  },
-  {
-    id: 4,
-    product_id: 104,
-    product_title: "Laptop Sleeve 15\"",
-    buyer_name: "Andrei Radu",
-    rating: 5,
-    comment: "Foarte mulțumit de achiziție! Materialul este de calitate premium și protejează laptopul perfect.",
-    created_at: "2024-05-08T09:20:00Z",
-    seller_reply: {
-      comment: "Vă mulțumim pentru feedback-ul pozitiv! Ne bucurăm că produsul nostru vă protejează laptopul în siguranță. Vă așteptăm cu drag și la alte comenzi!",
-      replied_at: "2024-05-09T11:30:00Z"
-    }
-  },
-  {
-    id: 5,
-    product_id: 105,
-    product_title: "Bluetooth Speaker Mini",
-    buyer_name: "Cristina Vasile",
-    rating: 2,
-    comment: "Dezamăgitor. Sunetul este slab și bateria nu ține cât promite. Nu recomand.",
-    created_at: "2024-05-14T13:00:00Z",
-    seller_reply: null
-  }
-]
-
 export default function SellerReviews() {
-  // MOCK: Folosim date statice pentru testare
-  // După implementarea backend-ului (Task #122), decomentează loadReviews() și șterge MOCK_REVIEWS
-  const [reviews, setReviews] = useState<Review[]>(MOCK_REVIEWS)
-  const [isLoading, setIsLoading] = useState(false) // false pentru a afișa imediat mock data
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [replyText, setReplyText] = useState<{ [key: number]: string }>({})
   const [sendingReply, setSendingReply] = useState<{ [key: number]: boolean }>({})
 
   useEffect(() => {
-    // MOCK: Comentat pentru testare
-    // loadReviews()
+    loadReviews()
   }, [])
 
   const loadReviews = async () => {
@@ -98,6 +38,7 @@ export default function SellerReviews() {
       setReviews(response.data)
     } catch (error) {
       console.error("Eroare la încărcarea recenziilor:", error)
+      alert("Eroare la încărcarea recenziilor. Te rugăm să încerci din nou.")
     } finally {
       setIsLoading(false)
     }
@@ -123,25 +64,13 @@ export default function SellerReviews() {
     try {
       setSendingReply(prev => ({ ...prev, [reviewId]: true }))
       
-      // MOCK: Simulăm trimiterea răspunsului
-      // După implementarea backend-ului (Task #122), decomentează linia de mai jos
-      // const updatedReview = await replyToReview(reviewId, comment)
-      
-      // MOCK: Simulăm răspunsul de la server
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulăm delay de rețea
-      
-      const updatedReview: Review = {
-        ...reviews.find(r => r.id === reviewId)!,
-        seller_reply: {
-          comment: comment,
-          replied_at: new Date().toISOString()
-        }
-      }
+      // Trimite răspunsul la backend
+      const updatedReview = await replyToReview(reviewId, comment)
       
       // Actualizează lista de recenzii cu răspunsul nou
       setReviews(prev =>
         prev.map(review =>
-          review.id === reviewId ? updatedReview : review
+          review.id === reviewId ? { ...updatedReview, product_title: review.product_title } : review
         )
       )
       
@@ -150,6 +79,7 @@ export default function SellerReviews() {
       
       alert("Răspunsul a fost trimis cu succes!")
     } catch (error) {
+      console.error("Eroare la trimiterea răspunsului:", error)
       alert(error instanceof Error ? error.message : "Eroare la trimiterea răspunsului.")
     } finally {
       setSendingReply(prev => ({ ...prev, [reviewId]: false }))
